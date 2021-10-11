@@ -1,0 +1,338 @@
+---
+title: 'Impact of the COVID-19 pandemic in mental health in Spain (Intro)'
+subtitle: 'COVID-19 lockdown substudy within the "Edad con Salud" project'
+output:
+  officedown::rdocx_document:
+    keep_md: no
+csl:          ../../www/apa-old-doi-prefix.csl
+bibliography: ../../www/Subestudio_confinamiento.bib
+editor_options: 
+  chunk_output_type: console
+params:
+  extra: no
+---
+
+```{r setup, include=FALSE}
+library(pacman)
+p_load(knitr)
+
+
+# File system constants:
+
+OUT_DIR  <- "output/COVID-19_lockdown"
+SRC_DIR  <- "src"
+SRC_FILE <- file.path(SRC_DIR, "Lockdown_analysis.R")
+
+
+# Knitr output configuration:
+
+opts_chunk$set(
+  echo       = FALSE,
+  results    = 'asis',
+  warning    = FALSE,
+  message    = FALSE,
+  cache      = TRUE,
+  fig.width  = 16.59/2.54,
+  fig.height = 4.5
+)
+
+options(knitr.kable.NA = '')
+options(digits = 3)
+```
+
+
+```{r read-chunks, cache=FALSE}
+read_chunk(SRC_FILE)
+```
+
+
+```{r script-configuration, cache=FALSE}
+```
+
+
+```{r includes, cache=FALSE}
+```
+
+
+```{r constants}
+```
+
+
+```{r load-data}
+```
+
+
+```{r subset-cases}
+```
+
+
+```{r compute-interview-dates}
+```
+
+
+```{r preprocess-data}
+```
+
+
+```{r create-var-labels}
+```
+
+
+```{r set-flextable-wd, cache=FALSE}
+# This is necessary for flextable to work:
+opts_knit$set(root.dir = file.path(getwd(), OUT_DIR))
+```
+
+
+```{r missing-responses}
+```
+
+
+```{r time-varying-predictors}
+```
+
+
+```{r subset-predictors}
+```
+
+
+```{r standardize-predictors}
+```
+
+
+```{r subset-predictors-new}
+```
+
+
+```{r var-descriptives}
+```
+
+
+```{r quantitative-descriptives-table, tab.id="quantitative-descriptives-table", tab.cap=CAPTION_DESC_QUANTITATIVE_PREDICTORS}
+quant_descriptives_out
+```
+
+\newpage
+
+
+```{r categorical-descriptives-table, tab.id="categorical-descriptives-table", tab.cap=CAPTION_DESC_CATEGORICAL_PREDICTORS}
+cat_descriptives_out
+```
+
+\newpage
+
+
+```{r depression-dataset}
+```
+
+
+```{r depression-descriptives}
+```
+
+
+```{r depression-prevalence-population}
+```
+
+
+```{r depression-prevalence-population-table, tab.id="depression-prevalence-population-table", tab.cap=CAPTION_PREVALENCE_DEPRESSION_IDEATION}
+depression_prevalence_est %>%
+  flextable() %>%
+  align(j = 2:3, align = "right") %>%
+  autofit()
+```
+
+\newpage
+
+
+```{r depression-association}
+```
+
+
+```{r depression-association-population}
+```
+
+
+```{r depression-alluvial-population}
+```
+
+
+```{r depression-selection-no-pre}
+```
+
+
+```{r depression-no-pre-contingency}
+```
+
+
+```{r depression-no-pre-contingency-table, tab.id="depression-no-pre-contingency-table", tab.cap=CAPTION_DEPRESSION_CONTINGENCY_PREDS_NEW}
+depression_no_pre_contingency <- depression_no_pre_contingency %>%
+  slice(1:20, (n()-2):n(), 21:(n()-3)) %>% # Order physical activity (post)
+  mutate(Variable = pred_descriptors[Variable])
+
+border_index <- depression_no_pre_contingency %>%
+  mutate(Variable != Variable %>% lead(1, default = last(.))) %>%
+  pull()
+
+depression_no_pre_contingency %>%
+  flextable() %>%
+  border(i = border_index, border.bottom = fp_border(width = .1)) %>%
+  merge_v(j = 1) %>%
+  valign(valign = "top") %>%
+  fix_border_issues() %>%
+  set_table_properties(layout = "autofit")
+```
+
+\newpage
+
+
+```{r univariate-tests-new-depression}
+```
+
+
+```{r predictor-selection-new-depression}
+```
+
+
+```{r ordinal-linearity-tests-new-depression}
+```
+
+
+```{r stepwise-glm-new-depression, cache=FALSE, results='hide'}
+```
+
+
+```{r conclusions-pre-computations-depression-new}
+```
+
+
+```{r drop-complete-separation-terms-depression-new}
+```
+
+
+```{r stepwise-glm-new-depression, cache=FALSE, results='hide'}
+```
+
+
+```{r conclusions-pre-computations-depression-new-bis}
+```
+
+
+```{r depression-coefficients-new}
+```
+
+
+```{r depression-coefficients-new-table, tab.id="depression-coefficients-new-table", tab.cap=CAPTION_DEPRESSION_FIT_NEW_TERMS}
+depression_coefficients_new_table
+```
+
+\newpage
+
+
+```{r suicidal-dataset}
+```
+
+
+```{r suicidal-descriptives}
+```
+
+
+```{r suicidal-prevalence-population}
+```
+
+
+```{r suicidal-prevalence-population-table, tab.id="suicidal-prevalence-population-table", tab.cap=CAPTION_PREVALENCE_SUICIDAL_IDEATION}
+suicidal_prevalence_est %>%
+  flextable() %>%
+  align(j = 2:3, align = "right") %>%
+  autofit()
+```
+
+\newpage
+
+
+```{r suicidal-association}
+```
+
+
+```{r suicidal-association-population}
+```
+
+
+```{r suicidal-alluvial-population}
+```
+
+
+```{r suicidal-selection-no-pre}
+```
+
+
+```{r suicidal-no-pre-contingency}
+```
+
+
+```{r suicidal-no-pre-contingency-table, tab.id="suicidal-no-pre-contingency-table", tab.cap=CAPTION_SUICIDAL_IDEATION_CONTINGENCY_PREDS_NEW}
+suicidal_no_pre_contingency <- suicidal_no_pre_contingency %>%
+  slice(1:19, (n()-2):n(), 20:(n()-3)) %>% # Order physical activity (post)
+  mutate(Variable = pred_descriptors[Variable])
+
+border_index <- suicidal_no_pre_contingency %>%
+  mutate(Variable != Variable %>% lead(1, default = last(.))) %>%
+  pull()
+
+suicidal_no_pre_contingency %>%
+  flextable() %>%
+  border(i = border_index, border.bottom = fp_border(width = .1)) %>%
+  merge_v(j = 1) %>%
+  valign(valign = "top") %>%
+  fix_border_issues() %>%
+  set_table_properties(layout = "autofit")
+```
+
+\newpage
+
+
+```{r univariate-tests-new-suicidal}
+```
+
+
+```{r predictor-selection-new-suicidal}
+```
+
+
+```{r ordinal-linearity-tests-new-suicidal}
+```
+
+
+```{r stepwise-glm-new-suicidal, cache=FALSE, results='hide'}
+```
+
+
+```{r conclusions-pre-computations-suicidal-new, cache=FALSE}
+```
+
+
+```{r drop-complete-separation-terms-suicidal-new}
+```
+
+
+```{r stepwise-glm-new-suicidal, cache=FALSE, results='hide'}
+```
+
+
+```{r conclusions-pre-computations-suicidal-new-bis}
+```
+
+
+```{r suicidal-coefficients-new}
+```
+
+
+```{r suicidal-coefficients-new-table, tab.id="suicidal-coefficients-new-table", tab.cap=CAPTION_SUICIDAL_FIT_NEW_TERMS}
+suicidal_coefficients_new_table
+```
+
+\newpage
+
+
+```{r session-info, results='hide'}
+```

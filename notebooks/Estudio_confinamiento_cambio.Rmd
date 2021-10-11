@@ -1,0 +1,625 @@
+---
+title: "Estudio confinamiento"
+output:
+  html_notebook:
+    toc: yes
+    toc_float: yes
+    fig_width: 8.5
+    fig_height: 6.5
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, echo=FALSE}
+library(pacman)
+p_load(
+  knitr,
+  magrittr,
+  haven,
+  dplyr,
+  lubridate,
+  readr,
+  janitor,
+  plotly,
+  forcats,
+  scales,
+  MESS,
+  tibble,
+  tidyr
+)
+
+opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+```
+
+
+```{r load_data}
+BASE_DIR <- "~/../UAM"
+DB_PATH_MASTER <- file.path(
+  BASE_DIR,
+  "marta.miret@uam.es - Bases de datos maestras Edad con Salud"
+)
+OUTCOME_PATH_MASTER <- file.path(
+  BASE_DIR,
+  "marta.miret@uam.es - Documentacion Edad con Salud",
+  "Edad con salud - Subestudio COVID/Outcomes/Outcome datasets"
+)
+OUTCOME_PATH_PRE <- file.path(
+  BASE_DIR,
+  "marta.miret@uam.es - Documentacion Edad con Salud",
+  "Edad con salud - Ola 3/Outcomes/Cohorte 2019",
+  "Submuestra_1_preconfinamiento/Outcome datasets"
+)
+
+DATA_FILE_PRE <- file.path(
+  DB_PATH_MASTER,
+  "Ola_3/Cohorte_2019/Submuestra_1_preconfinamiento",
+  "Edad con Salud ola 3_cohorte 2019_base completa_Stata14.dta"
+)
+DATA_FILE_POST <- file.path(
+  DB_PATH_MASTER,
+  "Subestudio_COVID",
+  "Edad_con_salud_Fichero_Completo.dta"
+)
+
+DEPRESSION_FILE_PRE <- file.path(
+  OUTCOME_PATH_MASTER,
+  "Depression_PRECovid_comparable.dta"
+)
+DEPRESSION_FILE_POST <- file.path(OUTCOME_PATH_MASTER, "Depression_Covid.dta")
+DEPR_ICD10_FILE_PRE  <- file.path(OUTCOME_PATH_PRE,    "Depression_ICD10.dta")
+SLEEP_FILE           <- file.path(OUTCOME_PATH_MASTER, "Sleep.dta")
+
+dataset_master_pre  <- DATA_FILE_PRE        %>% read_dta()
+dataset_master_post <- DATA_FILE_POST       %>% read_dta()
+dataset_depr_pre    <- DEPRESSION_FILE_PRE  %>% read_dta()
+dataset_depr_post   <- DEPRESSION_FILE_POST %>% read_dta()
+dataset_depr_icd10  <- DEPR_ICD10_FILE_PRE  %>% read_dta()
+dataset_sleep       <- SLEEP_FILE           %>% read_dta()
+```
+
+```{r preprocess_data}
+dataset_master_post <- dataset_master_post %>%
+  mutate(FECHAFIN = FECHAFIN %>% parse_date("%d/%m/%Y"))
+
+dataset_master <- dataset_master_pre %>% full_join(
+  dataset_master_post,
+  by = c(number_id = "IDENTIFICA1", q0002_hhid = "IDENTIFICA2")
+)
+
+dataset_master <- dataset_master %>%
+  mutate(age_post = (q1010_birth_date %--% FECHAFIN) / years())
+
+dataset_valid <- dataset_master %>% # Only valid cases (1 = Accepts, 9 = Proxy)
+  filter(ESTADO_ENTREVISTA %in% c(1, 9))
+
+dataset_depr_post <- dataset_master_post        %>%
+  select(ID_CONTACTO, IDENTIFICA1, IDENTIFICA2) %>%
+  full_join(dataset_depr_post, by = "ID_CONTACTO")
+
+dataset_depression <- dataset_depr_pre %>% full_join(
+  dataset_depr_post,
+  by     = c(number_id = "IDENTIFICA1", q0002_hhid = "IDENTIFICA2"),
+  suffix = c("_pre", "_post")
+)
+
+dataset_depr_valid <- dataset_depression %>%
+  semi_join(dataset_valid, by = c("number_id", "q0002_hhid", "ID_CONTACTO"))
+
+dataset_valid_all <- dataset_valid %>%
+  full_join(
+    dataset_depr_valid,
+    by = c("number_id", "q0002_hhid", "ID_CONTACTO")
+  )
+```
+
+
+# Resumen
+
+
+**Depresión:**
+
+- No se puede afirmar que exista cambio en la variable dicotómica de depresión,
+cuando se utiliza la variable equivalente pre-post confinamiento.
+
+- El tamaño muestral no es lo bastante grande como para poder
+probar la hipótesis.
+
+- Cuando se utiliza como medida pre la medida de
+"algún episodio depresivo en los 12 meses anteriores a la primera entrevista"
+según la CIE-10,
+se halla un **aumento significativo en la incidencia de depresión**.
+
+- Se modelar la prevalencia de depresión mediante un modelo de
+regresión logística que incluya la medida de depresión pre-confinamiento
+(según criterios CIE-10)
+y las interacciones con otros predictores significativos.
+
+
+**Ideación suicida:**
+
+- Puede darse una reducción de la prevalencia de ideación suicida
+despues del confinamiento.
+
+- Se puede modelar la predicción en el cambio de la prevalencia de
+ideación suicida,
+mediante un modelo de regresión logística que incluya la interacción
+entre la medida Pre y otros predictores.
+
+
+**Sueño:**
+
+- Hay evidencia de un empeoramiento en la calidad del sueño, así como un
+decremento del número de horas de sueño.
+
+- El cambio en horas y calidad de sueño se puede modelar mediante modelos de
+regresión lineal y/o regresión logística ordinal.
+
+- También se puede usar como criterio la diferencia en el número de horas
+Pre-Post como criterio, simplificando el análisis del cambio en horas de sueño.
+
+
+**En general:**
+
+- Usando modelos más sofisticados se puede intentar modelar
+el cambio entre estados,
+teniendo además en cuenta la mortalidad, e.g.:
+[Change Rates and Prevalence of a Dichotomous Variable: Simulations and Applications](doi.org/10.1371/journal.pone.0118955)
+
+
+# Grupos de edad en la muestra
+
+Número de participantes en la muestra con
+50+, 55+, y 60+ años.
+
+
+```{r}
+tibble(
+  Edad = c("50+", "55+", "60+"),
+) %>% bind_cols(
+  bind_rows(
+    dataset_valid_all %>% filter(age_post >= 50) %>% count(),
+    dataset_valid_all %>% filter(age_post >= 55) %>% count(),
+    dataset_valid_all %>% filter(age_post >= 60) %>% count(),
+  )
+)
+```
+
+
+# Depresión pre - post confinamiento
+
+```{r}
+depression <- dataset_depr_valid %>% transmute_at(
+  vars(depression_pre, depression_post),
+  factor,
+  labels = c("No", "Sí")
+)
+```
+
+
+## Asociación entre depresión pre y post confinamiento
+
+```{r}
+depr_contingency <- depression %>% tabyl(depression_pre, depression_post)
+depr_contingency %>% as_tibble()
+```
+
+Hay un gran número de transiciones entre estados: personas que no estaban
+deprimidas pasan a estarlo, y algunas que no lo estaban pasan a estarlo después
+del confinamiento.
+
+
+```{r}
+depr_contingency %>% chisq.test()
+```
+
+El test muestra que existe asociación entre depresión pre y post confinamiento,
+a pesar de las transiciones entre estados.
+
+
+## Proporciones absolutas
+
+```{r}
+depression %>% {
+  full_join(
+    tabyl(., depression_pre) %>% adorn_pct_formatting()  %>% rename(Depression = depression_pre),
+    tabyl(., depression_post) %>% adorn_pct_formatting() %>% rename(Depression = depression_post),
+    by = "Depression",
+    suffix = c("_pre", "_post")
+  )
+} %>% as_tibble()
+```
+
+Se observa que el número de personas con depresión ha *disminuido* ligeramente
+durante el confinamiento.
+
+
+```{r sankey_depression}
+depr_count <- depression %>% group_by_all() %>% count()
+
+depr_count %$% plot_ly(
+    type        = "sankey",
+    orientation = "h",
+
+    node        = list(
+      label     = c(depression_pre %>% levels(), depression_post %>% levels()),
+      color     = c("blue", "red", "blue", "red")
+    ),
+
+    link = list(
+      source = as.integer(depression_pre)  - 1,
+      target = as.integer(depression_post) - 1 + nlevels(depression_pre),
+      value =  n
+    )
+  )
+```
+
+```{r}
+depr_contingency          %>%
+  select(-depression_pre) %>%
+  as.matrix()             %>%
+  mcnemar.test(correct = TRUE)
+```
+
+El [test de McNemar](https://online.stat.psu.edu/stat504/node/96/)
+muestra que no existe cambio significativo en cuanto a la prevalencia de
+depresión antes y después del confinamiento.
+
+```{r}
+n_participants <- depression %>% nrow()
+p01            <- depr_contingency %>%
+  filter(depression_pre == "No")   %>%
+  pull(Sí)                         %>%
+  divide_by(n_participants)
+p10            <- depr_contingency %>%
+  filter(depression_pre == "Sí")   %>%
+  pull(No)                         %>%
+  divide_by(n_participants)
+
+power_test <- power_mcnemar_test(
+  n    = n_participants,
+  paid = p01,
+  psi  = p10 / p01
+)
+power_test
+```
+
+La potencia estadística es de `r power_test$power %>% number(.01)`),
+lo cual es insuficiente para detectar cambios significativos de la
+prevalencia de depresión.
+
+
+## Conclusiones
+
+- No se puede afirmar que exista cambio en la variable dicotómica de depresión
+
+- Se puede intentar modelar el cambio entre estados,
+teniendo además en cuenta la mortalidad, e.g.:
+[Change Rates and Prevalence of a Dichotomous Variable: Simulations and Applications](doi.org/10.1371/journal.pone.0118955)
+
+
+# Ideación suicida pre - post confinamiento
+
+```{r}
+dataset_valid_all <- dataset_valid_all %>%
+  mutate(
+    q4585_ideation = q4585_ideation %>% na_if(999) %>% na_if(888),
+    SM9            = SM9            %>% na_if(9)
+  ) %>%
+  mutate_at(
+    vars(q4585_ideation, SM9),
+    factor,
+    labels = c("Sí", "No")
+  ) %>%
+  mutate_at(vars(q4585_ideation, SM9), fct_rev)
+
+suicidal <- dataset_valid_all %>% select(Pre = q4585_ideation, Post = SM9)
+```
+
+
+## Asociación entre ideación suicida pre y post confinamiento
+
+```{r}
+suic_contingency <- suicidal %>% tabyl(Pre, Post)
+suic_contingency %>% as_tibble()
+```
+
+```{r}
+suic_contingency <- suicidal        %>%
+  filter(!is.na(Pre), !is.na(Post)) %>%
+  tabyl(Pre, Post)
+suic_contingency %>% chisq.test(simulate.p.value = TRUE)
+```
+
+El test Chi cuadrado muestra que existe asociación entre ideación suicida
+pre y post confinamiento.
+
+
+## Proporciones absolutas
+
+```{r}
+suicidal_props <- suicidal %>% {
+  full_join(
+    tabyl(., Pre) %>% adorn_pct_formatting()  %>% rename(`Ideación suicida` = Pre),
+    tabyl(., Post) %>% adorn_pct_formatting() %>% rename(`Ideación suicida` = Post),
+    by = "Ideación suicida",
+    suffix = c("_pre", "_post")
+  )
+} %>% as_tibble()
+
+suicidal_prop_pre <- suicidal_props %>% filter(`Ideación suicida` == "Sí") %>%
+  pull(valid_percent_pre)
+suicidal_prop_post <- suicidal_props %>% filter(`Ideación suicida` == "Sí") %>%
+  pull(valid_percent_post)
+
+suicidal_props
+```
+
+De entre los casos válidos, la ideación suicida habría *disminuido*,
+del `r suicidal_prop_pre` al `r suicidal_prop_post`.
+Sin embargo, esta reducción es muy pequeña.
+
+```{r sankey_diagram}
+suic_count <- suicidal %>% group_by_all() %>% count()
+
+suic_count %$% plot_ly(
+    type        = "sankey",
+    orientation = "h",
+
+    node        = list(
+      label     = c(Pre %>% levels(), Post %>% levels()),
+      color     = c("blue", "red", "blue", "red")
+    ),
+
+    link = list(
+      source = as.integer(Pre)  - 1,
+      target = as.integer(Post) - 1 + nlevels(Pre),
+      value =  n
+    )
+  )
+```
+
+```{r}
+suic_contingency          %>%
+  select(-Pre)            %>%
+  as.matrix()             %>%
+  mcnemar.test(correct = TRUE)
+```
+
+El [test de McNemar](https://online.stat.psu.edu/stat504/node/96/)
+muestra que puede darse cambio significativo (reducción)
+en la prevalencia de ideación suicida antes y después del confinamiento.
+
+
+## Modelado del cambio en ideación suicida pre-post confinamiento
+
+Se ajusta en primer lugar un modelo de regresión logística para predecir
+ideación suicida post-confinamiento, utilizando la medida pre como predictor,
+e incluyendo el resto de potenciales predictores
+mediante una regresión por pasos.
+
+```{r}
+
+```
+
+
+## Conclusiones
+
+- Los resultados muestran que puede darse una reducción de la prevalencia de
+ideación suicida despues del confinamiento.
+
+
+# Depresión pre - post confinamiento (utilizando "Depression ICD10" como medida pre)
+
+Repetimos los análisis de cambio en la prevalencia de depresión,
+pero utilizando la definición de la variable "Depresión" original,
+en lugar de utilizar la que se creó a posteriori para ser equivalente a la que
+había en la medida post-confinamiento.
+La variable utilizada es `depression_12m`, indicador de prevalencia de algún
+episodio depresivo reciente (últimos 12 meses).
+
+```{r}
+dataset_depression <- dataset_depr_icd10 %>% full_join(
+  dataset_depr_post,
+  by     = c(number_id = "IDENTIFICA1", q0002_hhid = "IDENTIFICA2"),
+  suffix = c("_pre", "_post")
+)
+
+dataset_depr_valid <- dataset_depression %>%
+  semi_join(dataset_valid, by = c("number_id", "q0002_hhid", "ID_CONTACTO"))
+
+depr_icd10 <- dataset_depr_valid %>% transmute_at(
+  vars(depression_12m, depression),
+  factor,
+  labels = c("No", "Sí")
+) %>%
+  rename(Pre = depression_12m, Post = depression)
+```
+
+
+## Asociación entre depresión pre y post confinamiento
+
+```{r}
+depr_contingency <- depr_icd10 %>% tabyl(Pre, Post)
+depr_contingency %>% as_tibble()
+```
+
+Hay un gran número de transiciones entre estados,
+al igual que cuando se usa la definición equivalente a la medida post.
+
+
+```{r}
+depr_contingency %>% chisq.test()
+```
+
+En este caso, no se encuentra asociación entre las dos medidas.
+Esto indicaría que padecer depresión después del confinamiento es independiente
+de haber padecido depresión en los 12 meses anteriores a la primera entrevista.
+
+
+## Proporciones absolutas
+
+```{r}
+depr_icd10 %>% {
+  full_join(
+    tabyl(., Pre)  %>% adorn_pct_formatting() %>% rename(Depression = Pre),
+    tabyl(., Post) %>% adorn_pct_formatting() %>% rename(Depression = Post),
+    by = "Depression",
+    suffix = c("_pre", "_post")
+  )
+} %>% as_tibble()
+```
+
+En este caso, se observa que la incidencia de depresión habría aumentado.
+
+
+```{r sankey_depression_icd10}
+depr_count <- depr_icd10 %>% group_by_all() %>% count()
+
+depr_count %$% plot_ly(
+    type        = "sankey",
+    orientation = "h",
+
+    node        = list(
+      label     = c(Pre %>% levels(), Post %>% levels()),
+      color     = c("blue", "red", "blue", "red")
+    ),
+
+    link = list(
+      source = as.integer(Pre)  - 1,
+      target = as.integer(Post) - 1 + nlevels(Pre),
+      value =  n
+    )
+  )
+```
+
+```{r}
+depr_contingency %>%
+  select(-Pre)   %>%
+  as.matrix()    %>%
+  mcnemar.test(correct = TRUE)
+```
+
+El [test de McNemar](https://online.stat.psu.edu/stat504/node/96/)
+muestra que el aumento en la prevalencia de depresión sí es significativo.
+
+
+## Conclusiones
+
+- Existe un aumento significativo en la prevalencia de depresión, cuando se usa
+la medida de depresión CIE-10
+
+
+# Sueño
+
+## Horas de sueño
+
+Comprobamos si hay asociación entre las horas de sueño en las medidas pre y post
+mediante un test de correlación de Pearson.
+
+```{r}
+dataset_sleep %$% cor.test(sleeping_time_pre, sleeping_time_post)
+```
+
+Hay una correlación baja pero significativa y positiva.
+Las distribuciones son similares, con picos en las horas enteras,
+pero la medida "pre" parece indicar un mayor número de horas de sueño en
+promedio.
+
+```{r}
+dens_plot <- dataset_sleep                                           %>%
+  gather(key = "Medida", "Sueño [h.]", starts_with("sleeping_time")) %>%
+  mutate(
+    Medida = Medida %>% factor(
+      levels = c("sleeping_time_pre", "sleeping_time_post"),
+      labels = c("Pre", "Post")
+    )
+  )                                                                  %>% 
+  ggplot(
+    aes(x = `Sueño [h.]`, fill = Medida, group = Medida, color = Medida)
+  )                                                                  +
+  geom_density(alpha = .5)                                           +
+  theme_minimal()
+
+dens_plot %>% ggplotly()
+```
+
+
+Se pone a prueba mediante una prueba T de medias relacionadas:
+
+```{r}
+library(psych)
+
+dataset_sleep                          %>%
+  select(starts_with("sleeping_time")) %>%
+  describe(skew = FALSE)
+
+dataset_sleep %$% var.test(sleeping_time_pre, sleeping_time_post)
+
+dataset_sleep %$% t.test(sleeping_time_pre, sleeping_time_post, paired = TRUE,
+                         var.equal = FALSE)
+```
+
+La media de horas de sueño reportadas en los 30 días anteriores
+a la entrevista post-confinamiento es menor que la media de horas de sueño
+reportadas en los 12 meses anteriores a la entrevista de línea base.
+Por tanto, hay evidencia de una reducción en el número de horas de sueño
+durante el confinamiento.
+
+
+## Calidad del sueño
+
+Se comprueba la asociación entre las medidas mediante el ítem de calidad general
+de sueño, calculando la correlación policórica:
+
+```{r}
+corr <- dataset_sleep %>% select(starts_with("sleep_quality_")) %>%
+  polychoric(correct = FALSE)
+
+corr
+
+corr_val <- corr$rho[2, 1] %>% number(.001)
+```
+
+Existe una correlación moderada entre ambas medidas, de `r corr_val`.
+
+
+```{r}
+dataset_sleep %>%
+  select(starts_with("sleep_quality_")) %>%
+  summarize_all(quantile, na.rm = TRUE, probs = c(.25, .5, .75)) %>%
+  add_column(Quantile = c(.25, .5, .75), .before = 1)
+
+bar_plot <- dataset_sleep               %>%
+  select(starts_with("sleep_quality_")) %>%
+  gather("Medida", "Calidad sueño")     %>%
+    mutate(
+    Medida = Medida %>% factor(
+      levels = c("sleep_quality_pre", "sleep_quality_post"),
+      labels = c("Pre", "Post")
+    )
+  )                                     %>% 
+  ggplot(aes(x = `Calidad sueño`, fill = Medida, color = Medida)) +
+  geom_bar(position = position_dodge()) +
+  theme_minimal()
+
+bar_plot %>% ggplotly()
+```
+
+Según muestra el gráfico y los estadísticos de distribución, la medida Post
+parece contener menos puntuaciones altas y más puntuaciones bajas que la medida
+Pre.
+Se comprueba si el rango de las dos medidas es equivalente mediante el test de
+Mann-Whitney-Wilcoxon para variables ordinales emparejadas.
+
+
+```{r}
+dataset_sleep                           %>%
+  select(starts_with("sleep_quality_")) %$%
+  # zap_labels()                          %>%
+  wilcox.test(sleep_quality_pre, sleep_quality_post, paired = TRUE)
+```
+
+El test indica que los rangos no son equivalente.
+Por tanto, se encuentra evidencia de un decremento en la calidad de sueño
+durante el confinamiento, respecto a los 12 meses anteriores a la entrevista
+en línea base.

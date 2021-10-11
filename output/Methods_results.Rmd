@@ -1,0 +1,535 @@
+---
+title: 'Impact of the COVID-19 pandemic in mental health in Spain'
+output:
+  officedown::rdocx_document:
+    keep_md: no
+    reference_docx: ../www/Epidemiology_and_Psychiatric_Sciences.docx
+csl:          ../www/who-europe-harvard.csl
+bibliography: ../www/Subestudio_confinamiento.bib
+editor_options: 
+  chunk_output_type: console
+params:
+  extra: no
+---
+
+```{r setup, include=FALSE}
+library(pacman)
+p_load(knitr)
+
+
+# File system constants:
+
+ROOT_DIR <- ".."
+OUT_DIR  <- "output"
+SRC_DIR  <- "src"
+SRC_FILE <- file.path(SRC_DIR, "Lockdown_analysis.R")
+
+
+# opts_knit$set(root.dir = ROOT_DIR)
+
+# Knitr output configuration:
+
+opts_chunk$set(
+  echo       = FALSE,
+  results    = 'asis',
+  warning    = FALSE,
+  message    = FALSE,
+  cache      = TRUE,
+  fig.width  = 16.59/2.54,
+  fig.height = 4.5
+)
+
+options(digits = 3)
+```
+
+
+```{r read-chunks, cache=FALSE}
+read_chunk(SRC_FILE)
+```
+
+
+```{r script-configuration, cache=FALSE}
+```
+
+
+```{r includes, cache=FALSE}
+```
+
+
+```{r constants}
+```
+
+
+```{r load-data}
+```
+
+
+# Method
+
+## Sample and recruitment
+
+Non-institutionalized adults (i.e., 18+ years old)
+from the regions of Madrid and Barcelona participated in this study.
+These constitute the refreshment sample of the
+`r PROJECT_NAME` project
+(ageingandhealth.com) [@miret_health_2014].
+They were recruited following a multistage stratified design consisting of:
+(i) a random sample of municipalities,
+with sampling probability proportional to population size;
+(ii) a random sample of census units from each municipality;
+(iii) a random sample of households within each census track,
+delimited using predefined routes with a jump factor,
+which were assigned to one of two mutually exclusive age groups:
+18-49, or 50+, being the second one oversampled;
+(iv) a roster of occupants was created for each household;
+individuals belonging to the assigned age group were invited to participate.
+The response rate was 68.0%.
+Sampling weights were generated for the sample to be representative
+of the target population,
+according to the population distribution obtained from
+the National Institute of Statistics.
+
+```{r compute-interview-dates}
+```
+
+
+```{r subset-cases}
+```
+
+
+```{r compare-excluded-cases}
+```
+
+
+Participants were interviewed at their homes between
+`r date_init_pre` and `r date_end_pre` (Pre-COVID measure).
+They were reached out again between
+`r date_init_post` and `r date_end_post`
+to respond to a telephone interview (Post measure).
+Trained interviewers conducted the Pre- and Post-measure interviews,
+using a Computer-Assisted Personal and Telephonic Interviewing system,
+respectively.
+Protocols were approved by the Clinical Research Ethics Review Committees of
+both Parc Sanitari Sant Joan de Déu (Barcelona),
+and Hospital Universitario La Princesa (Madrid).
+All participants provided informed consent for their participation and
+the treatment of their personal data.
+
+Some participants were unable to respond first-hand to one or both of
+the interviews due to some physical and/or mental limitation,
+and thus a relative or co-habitant answered in their name.
+Only first-hand respondents to both interviews were included in these analyses;
+therefore, out of a sample of `r n_initial` participants,
+`r n_proxy_pre` proxy respondents were discarded,
+making a sample of `r n_pre_measure` participants in the Pre measure.
+A total of `r n_tota_excluded` were excluded from the Post measure
+for the following reasons:
+`r n_missing` participants did not provide recontact information,
+`r n_unreachable` participants could not be contacted,
+`r n_deceased` were deceased,
+`r n_proxy_post` were responded by a proxy respondent,
+`r n_reject` either rejected to respond to the Post-measure telephone interview
+or aborted it before finishing,
+and `r n_incident` had unspecified incidents.
+The final sample comprised `r n_final` participants in the Post measure.
+
+
+## Measures
+
+```{r preprocess-data}
+```
+
+
+```{r create-var-labels}
+```
+
+
+The outcome variables investigated were depression and suicidal ideation.
+Depressive symptoms were assessed with an adapted version of the
+Composite International Diagnostic Interview (CIDI)
+for Depression Screening [@kessler_world_2004].
+An algorithm following the ICD-10 criteria
+was used to diagnose depression in the previous 12 months,
+although no criteria were applied to differentially diagnose
+other plausible disorders.
+For the Post-measure interview,
+an abbreviated version was used,
+and the items were adapted to ask for a 30-day time span
+in order to account for an onset while
+the lockdown measures were in effect.
+The assessment algorithm in the Pre measure was adapted to be equivalent to
+that in the Post measure,
+with the same abbreviated item set.
+Suicidal ideation was measured as a single item of the CIDI instrument
+asking whether the participant had had suicidal thoughts
+in the previous 12 months and last 30 days for the Pre- and Post-measures
+periods, respectively.
+
+The following covariates were also measured:
+age, sex,
+education level (coded as `r edu_level_cats`),
+whether the participant lived alone (both before and during the lockdown),
+whether the participant had co-habited/was co-habiting with a relative
+isolated by COVID-19 (`r labels_abbr["rel_isolated"]`),
+whether the participant had been/was concerned about a relative/friend
+infected by COVID-19 (`r labels_abbr["rel_concerned"]`),
+whether the participant had been infected with COVID-19 and its severity
+(`r labels_abbr["severity"]`, coded as `r severity_cats`),
+whether the participant had enough quietness at home to get proper rest
+(`r labels_abbr["quietness"]`),
+whether the household economic situation had worsened due to the COVID-19
+emergency (`r labels_abbr["economy"]`),
+whether the participant had been (temporarily) unemployed due to the COVID-19
+emergency (`r labels_abbr["unemployment"]`),
+time a day (in hours) spent in front of screens during the lockdown
+(working and non-working),
+Pre- and Post-measure levels of physical activity
+coded as `r physical_cats`,
+according to an abbreviated version of the
+Global Physical Activity Questionnaire version 2
+(GPAQ-2) [@armstrong_development_2006],
+and the following scales:
+Post-measure score in the Brief Resilience scale
+[@rodriguez-rey_reliability_2016] measured as a 0-100 score,
+Pre and Post measures of social support, measured as a 0-100 score
+in the OSLO3 Social Support scale [@dalgard_negative_2006],
+Pre and Post measures of loneliness measured as a 0-100 score
+in the UCLA loneliness scale [@hughes_short_2016],
+and Post measure of disability assessed as a 0-100 score in
+the 12-item World Health Organization Disability Assessment Schedule
+(WHODAS 2.0) [@luciano_12-item_2010].
+These scales have been validated in previous studies (as referenced);
+the Brief Resilience Scale was taken from the validated version by
+Rodriguez Rey et al. [-@rodriguez-rey_reliability_2016],
+while the rest of them are validated in the original in English
+and were adapted for their use in the `r PROJECT_NAME` cohort study.
+All of them had internal consistency indices (i.e. Cronbach's $\alpha$)
+above .70, except for the OSLO3 Social Support scale,
+which reliability was moderate
+($\alpha$ = `r alpha_social_support_pre`)
+and low ($\alpha$ = `r alpha_social_support_post`)
+in the Pre and Post measures, respectively.
+Despite this, we regarded these scores as important covariates in
+relationship with mental health status,
+and thus we decided to take them into account nevertheless.
+
+
+## Data analysis
+
+```{r set-flextable-wd, cache=FALSE}
+# This is necessary for flextable to work:
+opts_knit$set(root.dir = file.path(getwd(), OUT_DIR))
+```
+
+
+```{r missing-responses}
+```
+
+
+```{r time-varying-predictors}
+```
+
+
+```{r standardize-predictors}
+```
+
+
+```{r subset-predictors}
+```
+
+
+```{r var-descriptives}
+```
+
+
+Sample descriptive statistics were computed for
+depression, suicidal ideation, and all the covariates.
+The effect of attrition in the Pre-measure sample was analyzed
+for differences in sociodemographics and the two outcome variables:
+Sex, depression, and suicidal ideation were tested with the
+$\mathrm{\chi}^2$-test; bias-corrected Cramér's V ($\mathrm{\phi_c}$)
+was computed as a measure of effect size.
+For age, a two-sample T-test was performed,
+with Hedges' g as a measure of effect size.
+
+Prevalence estimates --population-wise and disaggregated by sex
+and age (grouped in `r AGE_GROUPS_OUTPUT` year-olds) --
+were computed for depression and suicidal ideation in both measures.
+These estimates were based on the complete data of each outcome variable
+for the corresponding measure and their sampling weights.
+The differences between both measures were tested with
+a weighted McNemar's test of symmetry, using the complete data in both measures.
+Bonferroni correction was applied variable-wise to the disaggregated estimates.
+
+To model the risk of incidence after the lockdown,
+the cases with depression or suicidal ideation in the Pre-measures period
+were filtered out from the dataset for its corresponding analysis.
+Then,
+we performed a weighted logistic regression model on the Post measure.
+All covariates stated in section Measures were initially considered.
+In the case of suicidal ideation, the Pre and Post measures of depression were
+also considered as covariates.
+The following procedure was applied for fitting the models:
+First, all interval-level variables were standardized,
+in order to achieve better numerical convergence.
+Categorical covariates that yielded complete separation
+[@albert_existence_1984] were discarded for the same reason.
+Covariates were tested individually by fitting
+a univariate weighted logistic regression model
+and applying the Rao-Scott Likelihood-ratio test [@rao_chi-squared_1984].
+The significant covariates were selected for the
+subsequent multivariate regression model
+(without correction, in order to decrease Type-II error risk).
+Among the selected covariates,
+the ordinal ones were tested for non-linearity
+comparing the general model with a model with the linear term only,
+using the Wald test.
+Whenever the test was non-significant, only the linear term was included.
+Afterwards, a multivariate weighted logistic model was fit with the
+selected covariates, and a backward-step procedure was run in order to 
+drop covariates using the AIC statistic as criterion.
+Covariates were dropped until the best fitting model in the next step
+did not have a smaller AIC than the current step.
+Demographic variables Sex and Age were considered relevant covariates and
+thus were not subjected to this dropping.
+In the model of suicidal ideation, the Pre and Post measures of depression
+were also used as fixed covariates.
+The cases with non-missing values in all the initially selected covariates
+were used,
+but the final model was then refit to the subset of complete cases
+in the covariates selected by the backward-step procedure.
+As the procedure may select
+a different subset of covariates for each model,
+the number of complete cases may also differ.
+
+A significance level of `r sig_level_print` was used throughout.
+All significance tests were performed
+applying Bonferroni correction for multiple comparisons
+(unless stated otherwise).
+All the analyses were conducted in R v. 4.0.3 [@r_core_team_r:_2019].
+Package survey v. 4.0 [@lumley_analysis_2004]
+was used to fit the models.
+
+
+# Results
+
+## Sample descriptives
+
+Participants with data in both measures differed from the ones
+excluded in the Post measure in sex
+(`r attr_sex_test_format`) and age (`r attr_age_test_format`):
+The proportion of men excluded (`r prop_males_excluded`) was relatively higher
+than the ones included (`r prop_males_included`).
+Furthermore, the participants excluded were older
+(mean = `r mean_age_excluded`, sd = `r sd_age_excluded`)
+than the ones included
+(mean = `r mean_age_included`, sd = `r sd_age_included`).
+However, the effect size was negligible in the first case
+($\mathrm{\phi_c}$ = `r attr_sex_cramerV`),
+and `r attr_age_hedges_g_magnitude` in the second
+(g = `r attr_age_hedges_g_format`).
+No significant differences were found in depression
+between the included and the excluded sample
+(`r attr_depr_test_format`, $\mathrm{\phi_c}$ = `r attr_depr_cramerV`).
+Regarding suicidal ideation,
+the excluded sample differed significantly from the included one
+(`r prop_suic_excluded` versus `r prop_suic_included`, respectively;
+`r attr_suic_test_format`);
+the effect size was also negligible though
+($\mathrm{\phi_c}$ = `r attr_suic_cramerV`).
+The descriptive statistics for both outcome variables and the covariates
+for the sample included in the analysis are shown in Table 1.
+
+
+## Prevalence rates
+
+```{r depression-dataset}
+```
+
+
+```{r depression-prevalence-estimates}
+```
+
+
+```{r depression-association-population}
+```
+
+
+```{r suicidal-dataset}
+```
+
+
+```{r suicidal-prevalence-estimates}
+```
+
+
+```{r suicidal-association-population}
+```
+
+
+```{r prevalence-estimates-collapsed}
+```
+
+
+```{r prevalence-values}
+```
+
+
+Estimated prevalence rates are given in Table 2.
+The estimated prevalence rate of depression increased from
+`r depression_prev_pre` in the Pre to `r depression_prev_post`
+in the Post measure.
+According to the McNemar's test, the difference was not significant
+(`r mcnemar_depr_test`).
+When considering the differentiated age groups,
+the difference was more prominent for the `r AGE_GROUPS[1]`
+(increasing from `r depression_prev_pre_young` to
+`r depression_prev_post_young`)
+and the `r AGE_GROUPS[2]`
+(increasing from `r depression_prev_pre_middle` to
+`r depression_prev_post_middle`), but none of them was significant.
+However, a significant decrease from `r depression_prev_pre_old` to
+`r depression_prev_post_old` was observed in the `r AGE_GROUPS[3]` group
+(`r mcnemar_depr_test_old`).
+For suicidal ideation, the prevalence rate estimate increased from
+`r suicidal_prev_pre` in the Pre to `r suicidal_prev_post` in the Post measure,
+but this difference was not significant (`r mcnemar_suic_test`).
+After Bonferroni correction,
+none of the disaggregated estimates was significant either.
+
+
+## Risk of depression after the lockdown
+
+```{r depression-selection-no-pre}
+```
+
+
+```{r depression-no-pre-contingency}
+```
+
+
+```{r univariate-tests-depression}
+```
+
+
+```{r predictor-selection-depression}
+```
+
+
+```{r ordinal-linearity-tests-depression}
+```
+
+
+```{r stepwise-glm-depression, results='hide'}
+```
+
+
+```{r conclusions-pre-computations-depression}
+```
+
+
+```{r depression-coefficients}
+```
+
+
+The final regression model for depression was fit
+with a sample size of `r nobs`.
+Its covariates are given in Table 3,
+along with their coefficients in odds-ratios.
+After Bonferroni correction,
+the coefficient for Age was found to be significant,
+along with the Post-measures of `r depression_sig_terms_labels`.
+
+
+The odds-ratio for Age was `r depr_age_OR` (`r depr_age_test`).
+That is, for each year,
+the risk of developing depression was expected to `r depr_age_dir`
+by a `r depr_age_decr`.
+For `r depr_ucla_lon_post_lab`, the odds-ratio was `r depr_ucla_lon_post_OR`
+(`r depr_ucla_lon_post_test`),
+which means that an increase of one standard deviation
+in the Post measure of the UCLA Loneliness Scale was associated with
+`r depr_ucla_lon_post_dir` of `r depr_ucla_lon_post_incr`
+in the odds-ratio of receiving a positive diagnosis
+of depression in the Post measure.
+This corresponds to `r depr_ucla_lon_post_dir` of
+`r depr_ucla_lon_post_coef_abs_score` per point in the original scoring of the
+UCLA Loneliness Scale.
+In the case of `r depr_resilience_post_lab`,
+the odds-ratio was `r depr_resilience_post_OR` (`r depr_resilience_post_test`),
+meaning that an increase of one standard deviation in the Post measure of the
+Brief Resilience Scale was associated with
+`r depr_resilience_post_dir` of `r depr_resilience_post_decr`
+in the odds-ratio of receiving a positive diagnosis
+of depression in the Post measure.
+This is equivalent to `r depr_resilience_post_dir` of a
+`r depr_resilience_post_coef_abs_score` per point in the original scoring of the
+Brief Resilience Scale.
+
+
+## Risk of suicidal ideation after the lockdown
+
+```{r suicidal-selection-no-pre}
+```
+
+
+```{r suicidal-no-pre-contingency}
+```
+
+
+```{r univariate-tests-suicidal}
+```
+
+
+```{r predictor-selection-suicidal}
+```
+
+
+```{r drop-complete-separation-terms-suicidal}
+```
+
+
+```{r ordinal-linearity-tests-suicidal}
+```
+
+
+```{r stepwise-glm-suicidal, results='hide'}
+```
+
+
+```{r conclusions-pre-computations-suicidal}
+```
+
+
+```{r suicidal-coefficients}
+```
+
+
+This model was fit with a sample size of `r nobs`;
+its covariates and their coefficients (as odds-ratios)
+are shown in Table 4.
+After Bonferroni correction,
+the significant covariates were the Post-measures of
+`r suicidal_sig_terms_labels_collapsed`.
+The odds-ratio of `r suic_oslo3_post_label` was
+`r suic_oslo3_post_coef` (`r suic_oslo3_post_test`).
+This implies that an increase of one standard deviation
+in the Post measure of the Oslo-3 Social Support Scale was associated with
+`r suic_oslo3_post_dir` of `r suic_oslo3_post_abs`
+in the odds-ratio of reporting having suicidal ideation in the Post measure or,
+equivalently, `r suic_oslo3_post_dir` of a
+`r suic_oslo3_post_neg_OR` per point in the original scoring of the
+scale.
+The odds-ratio for `r suic_resilience_post_label`
+was `r suic_resilience_post_coef` (`r suic_resilience_post_test`),
+implying `r suic_resilience_post_dir` of `r suic_resilience_post_abs`
+for an increase of one standard deviation in the Post measure of the
+Brief Resilience Scale.
+This is equivalent to `r suic_resilience_post_dir` of practically
+`r suic_resilience_post_neg_OR` per point in the original scoring of the
+Brief Resilience Scale.
+
+```{r session-info, results='hide'}
+```
+
+# References

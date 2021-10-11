@@ -1,0 +1,201 @@
+---
+title: 'Prevalence of depression, before and after the COVID-19 pandemic'
+output:
+  officedown::rdocx_document:
+    keep_md: no
+csl:          ../../www/apa-old-doi-prefix.csl
+bibliography: ../../www/Subestudio_confinamiento.bib
+editor_options: 
+  chunk_output_type: console
+params:
+  extra: no
+---
+
+```{r setup, include=FALSE}
+library(pacman)
+p_load(knitr)
+
+
+# File system constants:
+
+OUT_DIR  <- "output/COVID-19_lockdown"
+SRC_DIR  <- "src"
+SRC_FILE <- file.path(SRC_DIR, "Lockdown_analysis.R")
+
+
+# Knitr output configuration:
+
+opts_chunk$set(
+  echo       = FALSE,
+  results    = 'asis',
+  warning    = FALSE,
+  message    = FALSE,
+  cache      = FALSE,
+  fig.width  = 16.59/2.54,
+  fig.height = 4.5
+)
+
+options(knitr.kable.NA = '')
+options(digits = 3)
+```
+
+
+```{r read-chunks, cache=FALSE}
+read_chunk(SRC_FILE)
+```
+
+
+```{r script-configuration, cache=FALSE}
+```
+
+
+```{r includes, cache=FALSE}
+```
+
+
+```{r constants}
+```
+
+
+```{r load-data}
+```
+
+
+# Prevalence of depression (Before and after the beginning of the pandemic)
+
+```{r compute-interview-dates}
+```
+
+
+```{r subset-cases}
+```
+
+
+```{r compare-excluded-cases}
+```
+
+
+## Measurement of depression
+
+```{r preprocess-data}
+```
+
+
+```{r create-var-labels}
+```
+
+
+Depression was computed with an algorithm accounting for several factors
+and symptoms,
+according to the Composite International Diagnostic Interview (CIDI)
+for Depression Screening [@kessler_world_2004].
+The Pre-measure algorithm of depression was adapted to be equivalent and
+used only the same abbreviated item set that was used in the Post measure.
+These items addressed depressive symptoms in the last 12 months or in the
+last 30 days por the Pre and Post measures, respectively.
+
+
+## Data analysis
+
+```{r set-flextable-wd, cache=FALSE}
+# This is necessary for flextable to work:
+opts_knit$set(root.dir = file.path(getwd(), OUT_DIR))
+```
+
+
+```{r missing-responses}
+```
+
+
+```{r time-varying-predictors}
+```
+
+
+```{r subset-predictors}
+```
+
+
+```{r standardize-predictors}
+```
+
+
+```{r subset-predictors-new}
+```
+
+
+```{r var-descriptives}
+```
+
+
+Population prevalence estimates were computed
+for depression both in the Pre and the Post measure.
+These estimates were based on the values of the outcome variable
+and the sampling weights.
+The prevalence estimates were also disaggregated by sex (Male / Female)
+and age group (18-49, 50+).
+The Pre-measure prevalence was estimated with the sample of participants
+available, before filtering out the ones excluded from the Post measure.
+
+
+# Results
+
+## Sample descriptives
+
+- Initial sample size: `r n_initial`.
+
+- Exclusions from the Pre measure: `r n_proxy_pre` proxy respondents.
+
+- Sample size in the Pre measure: `r n_pre_measure`.
+
+- Exclusions from the Post measure:
+
+  - Participants without recontact information: `r n_missing`.
+  
+  - Unreachable participants: `r n_unreachable`
+  (wrong number, fax line, non-answering, out of order line,
+  calls repeatedly answered by an answering machine).
+  
+  - Deceased: `r n_deceased`.
+  
+  - Proxy respondents: `r n_proxy_post`.
+  
+  - Rejected to respond / aborted interview before finishing: `r n_reject`.
+  
+  - Unspecified incidents: `r n_incident`.
+  
+
+- Sample size in the post measure: `r n_final`.
+
+
+## Prevalence rates
+
+```{r depression-dataset}
+```
+
+
+```{r depression-descriptives}
+```
+
+
+```{r depression-prevalence-estimates}
+```
+
+<br>
+
+```{r depression-prevalence-pre-table, tab.cap = "Prevalence estimates, Pre measure"}
+depression_prevalence_pre %>% flextable() %>% autofit()
+```
+
+<br>
+
+```{r depression-prevalence-post-table, tab.cap = "Prevalence estimates, Post measure"}
+depression_prevalence_post %>% flextable() %>% autofit()
+```
+
+\newpage
+
+
+```{r session-info, results='hide'}
+```
+
+# References
