@@ -7,6 +7,9 @@ Analyses for the paper http://doi.org/10.1017/S2045796021000408
 
 - Perform the study analyses: src/Lockdown_analysis.R
 
+- Generate the output document with the Tables:
+output/Tables.Rmd
+
 - Generate the output document with the methods & results sections:
 output/Methods_results_Review.Rmd
 
