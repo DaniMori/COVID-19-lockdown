@@ -53,6 +53,9 @@ source("R/Stata_output.R",  encoding = 'UTF-8')
 
 source("R/Lang_EN.R", encoding = 'UTF-8')
 
+
+## ----reliability----
+
 source("src/Reliability_lockdown_measures.R") # Fails in R 4.1.0!
 
 
@@ -167,6 +170,7 @@ max_missing_print <- MAX_MISSING %>% percent()
 
 ## ----load-data----
 dataset_outcomes <- OUTCOMES_DB_FILE %>% read_dta()
+# dataset_outcomes <- dataset_outcomes |> filter(q0002_hhid != 69007)
 
 ## ----compute-interview-dates----
 
