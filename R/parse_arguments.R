@@ -1,5 +1,5 @@
-library(pacman)
-p_load(assertive.extra, assertive)
+library(assertive.extra)
+library(assertive)
 
 parse_bool <- function(arg, default = "warning") {
   

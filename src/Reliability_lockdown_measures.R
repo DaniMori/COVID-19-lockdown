@@ -5,8 +5,6 @@
 # rm(list = ls())
 
 # Packages:
-library(pacman)
-
 
 ## ----script-configuration----
 
@@ -17,14 +15,12 @@ library(pacman)
 ## ---- Shared chunks: ---------------------------------------------------------
 
 ## ----includes----
-p_load(tidyverse, magrittr, haven, psych)
+library(tidyverse)
+library(magrittr)
+library(haven)
+library(psych)
 
-# source("R/Data.R",          encoding = 'UTF-8')
 source("R/Output.R",        encoding = 'UTF-8')
-# source("R/Stats_toolbox.R", encoding = 'UTF-8')
-# source("R/Stata_output.R",  encoding = 'UTF-8')
-# 
-# source("R/Lang_EN.R", encoding = 'UTF-8')
 
 
 ## ----constants----

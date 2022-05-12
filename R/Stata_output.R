@@ -13,12 +13,16 @@
 
 ## ---- GLOBAL OPTIONS: --------------------------------------------------------
 
-library(pacman)
-
 
 ## ---- INCLUDES: --------------------------------------------------------------
 
-p_load(stringr, tibble, dplyr, tidyr, magrittr, purrr, glue)
+library(stringr)
+library(tibble)
+library(dplyr)
+library(tidyr)
+library(magrittr)
+library(purrr)
+library(glue)
 
 source("R/parse_arguments.R")
 

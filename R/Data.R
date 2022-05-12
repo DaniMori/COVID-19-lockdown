@@ -12,12 +12,12 @@
 
 ## ---- GLOBAL OPTIONS: --------------------------------------------------------
 
-library(pacman)
-
 
 ## ---- INCLUDES: --------------------------------------------------------------
 
-p_load(broom, dplyr, assertive)
+library(broom)
+library(dplyr)
+library(assertive)
 
 source("R/parse_arguments.R", encoding = 'UTF-8')
 

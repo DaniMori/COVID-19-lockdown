@@ -12,12 +12,15 @@
 
 ## ---- GLOBAL OPTIONS: --------------------------------------------------------
 
-library(pacman)
-
 
 ## ---- INCLUDES: --------------------------------------------------------------
 
-p_load(tidyverse, magrittr, janitor, glue, scales, rlang)
+library(tidyverse)
+library(magrittr)
+library(janitor)
+library(glue)
+library(scales)
+library(rlang)
 
 source("R/parse_arguments.R")
 

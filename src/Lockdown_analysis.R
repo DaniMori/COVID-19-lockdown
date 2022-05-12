@@ -20,31 +20,30 @@ ggplot2::theme_set(ggplot2::theme_minimal())
 ## ---- Shared chunks: ---------------------------------------------------------
 
 ## ----includes----
-p_load(
-  tidyverse,
-  magrittr,
-  haven,
-  flextable,
-  janitor,
-  broom,
-  psych,
-  GGally,
-  plotly,
-  ggpointdensity,
-  lmerTest,
-  WeMix,
-  lubridate,
-  ggalluvial,
-  ggrepel,
-  MESS,
-  modelr,
-  forcats,
-  RStata,
-  survey,
-  officer,
-  ftExtra,
-  effsize
-)
+
+library(tidyverse)
+library(magrittr)
+library(haven)
+library(flextable)
+library(janitor)
+library(broom)
+library(psych)
+library(GGally)
+library(plotly)
+library(ggpointdensity)
+library(lmerTest)
+library(WeMix)
+library(lubridate)
+library(ggalluvial)
+library(ggrepel)
+library(MESS)
+library(modelr)
+library(forcats)
+library(RStata)
+library(survey)
+library(officer)
+library(ftExtra)
+library(effsize)
 
 source("R/Data.R",          encoding = 'UTF-8')
 source("R/Output.R",        encoding = 'UTF-8')
