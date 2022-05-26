@@ -4,10 +4,6 @@
 
 rm(list = ls())
 
-# Packages:
-library(pacman)
-
-
 ## ----script-configuration----
 
 # Graphical output configuration:
@@ -169,7 +165,6 @@ max_missing_print <- MAX_MISSING %>% percent()
 
 ## ----load-data----
 dataset_outcomes <- OUTCOMES_DB_FILE %>% read_dta()
-# dataset_outcomes <- dataset_outcomes |> filter(q0002_hhid != 69007)
 
 ## ----compute-interview-dates----
 
@@ -345,7 +340,8 @@ var_descriptors <- dataset_outcomes %>%
     -age_post,
     suicidal_pre, suicidal_post
   ) %>%
-  map_chr(~attr(., "label") %||% NA_character_)
+  map_chr(~attr(., "label") %||% NA_character_) |>
+  c(depression_lt = "Depression (lifetime)")
 
 var_descriptors[
   c(
@@ -396,7 +392,8 @@ labels_abbr <- c(
   "Depression", "Depression",
   "Age",
   "Physical activity",
-  "Suicidal ideation", "Suicidal ideation"
+  "Suicidal ideation", "Suicidal ideation",
+  "Depression (lifetime)"
 ) %>%
   set_names(names(var_descriptors))
 
@@ -420,8 +417,9 @@ var_measure <- c(
   PRE_LEVEL, POST_LEVEL,
   PRE_LEVEL,
   POST_LEVEL,
-  PRE_LEVEL, POST_LEVEL
+  PRE_LEVEL, POST_LEVEL,
   # POST_LEVEL
+  PRE_LEVEL
 ) %>%
   set_names(names(var_descriptors))
 
@@ -432,7 +430,8 @@ var_properties <- tibble(
   mutate(
     append_measure = c(
       FALSE %>% rep(6), TRUE  %>% rep(8), FALSE %>% rep(3),
-      TRUE  %>% rep(2), FALSE %>% rep(5), TRUE  %>% rep(6)
+      TRUE  %>% rep(2), FALSE %>% rep(5), TRUE  %>% rep(6),
+      FALSE
     ),
     labels_comp = labels_abbr %>% paste0(" (", var_measure, ")"),
     labels_comp = append_measure %>%
@@ -611,7 +610,7 @@ cat_total_out <- cat_descriptives_out %>%
     sample_contrasts,
     by = c(var_cat = "labels_abbr", Level = "cat")
   ) %>%
-  mutate(across(where(is.double), as.character)) %>%
+  mutate(across(where(is.numeric), as.character)) %>%
   ungroup() %>%
   select(-Variable, -(N:`Percent valid`)) %>%
   pivot_wider(
