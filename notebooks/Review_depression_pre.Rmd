@@ -1,0 +1,657 @@
+---
+title: Propuesta de enmienda al artículo "Subestudio COVID"
+output:
+  html_document:
+    df_print:     kable
+    toc:          yes
+    toc_float:    yes
+    code_folding: hide
+editor_options: 
+  chunk_output_type: console
+params:
+  extra: no
+---
+
+```{r setup, include=FALSE}
+library(pacman)
+p_load(knitr)
+
+
+# File system constants:
+
+ROOT_DIR <- ".."
+OUT_DIR  <- "output"
+SRC_DIR  <- "src"
+SRC_FILE <- file.path(SRC_DIR, "Lockdown_analysis.R")
+
+
+# opts_knit$set(root.dir = ROOT_DIR)
+
+# Knitr output configuration:
+
+opts_chunk$set(
+  echo       = FALSE,
+  results    = 'asis',
+  warning    = FALSE,
+  message    = FALSE,
+  cache      = TRUE,
+  fig.width  = 16.59/2.54,
+  fig.height = 4.5
+)
+
+options(digits = 3)
+```
+
+```{r read-chunks, cache=FALSE}
+read_chunk(SRC_FILE)
+```
+
+```{r script-configuration, cache=FALSE}
+```
+
+```{r includes, cache=FALSE}
+```
+
+```{r reliability, cache=FALSE}
+```
+
+```{r constants}
+```
+
+```{r load-data}
+```
+
+```{r compute-interview-dates}
+```
+
+```{r subset-cases}
+```
+
+```{r compare-excluded-cases}
+```
+
+```{r preprocess-data}
+```
+
+```{r create-var-labels}
+```
+
+```{r missing-responses}
+```
+
+```{r time-varying-predictors}
+```
+
+```{r standardize-predictors}
+```
+
+```{r subset-predictors}
+```
+
+```{r var-descriptives}
+```
+
+```{r depression-dataset}
+```
+
+```{r depression-prevalence-estimates}
+```
+
+```{r depression-association-population}
+```
+
+```{r suicidal-dataset}
+```
+
+```{r suicidal-prevalence-estimates}
+```
+
+```{r suicidal-association-population}
+```
+
+```{r prevalence-estimates-collapsed, cache=FALSE}
+```
+
+```{r prevalence-values}
+```
+
+```{r depression-selection-no-pre}
+```
+
+```{r depression-no-pre-contingency}
+```
+
+```{r univariate-tests-depression}
+```
+
+```{r predictor-selection-depression}
+```
+
+```{r ordinal-linearity-tests-depression}
+```
+
+```{r stepwise-glm-depression, results='hide'}
+```
+
+```{r conclusions-pre-computations-depression}
+```
+
+```{r depression-coefficients}
+```
+
+```{r suicidal-selection-no-pre}
+```
+
+```{r suicidal-no-pre-contingency}
+```
+
+```{r univariate-tests-suicidal}
+```
+
+```{r predictor-selection-suicidal}
+```
+
+```{r drop-complete-separation-terms-suicidal}
+```
+
+```{r ordinal-linearity-tests-suicidal}
+```
+
+```{r stepwise-glm-suicidal, results='hide'}
+```
+
+```{r conclusions-pre-computations-suicidal}
+```
+
+```{r suicidal-coefficients}
+```
+
+# Resumen
+
+El artículo "Changes in depression and suicidal ideation under
+severe lockdown restrictions during the first wave of
+the COVID-19 pandemic in Spain:
+A longitudinal study in the general population"
+reporta cambios no significativos en la prevalencia poblacional estimada
+de depresión.
+Una revisión posterior ha puesto de relieve un error en el uso de la variable
+de depresión Pre-confinamiento, al haberse utilizado la variable de
+"Depresión a lo largo de la vida" (Lifetime depression) en lugar de la variable
+de "Depresión en los últimos 12 meses" (12-month depression).
+Este error se debe, en parte, a no haberse generado una variable
+"12-month depression" con el algoritmo abreviado equivalente al usado en
+la medida Post.
+
+Al utilizar la variable "12-month depression" se observan prevalencias de
+depresión mucho menores en la medida Pre-confinamiento.
+Esto da lugar a que los cambios en prevalencia aumenten significativamente,
+siendo esto más relevante si se considera que se está comparando un período de
+12 meses en la medida Pre con uno de 30 días en la medida Post.
+
+Se recomienda enviar una enmienda a Epidemiology & Psychiatric Sciences,
+explicando el error y con los datos corregidos.
+En caso de considerarse necesario, se puede crear y utilizar una variable
+"12-month depression" con el algoritmo abreviado equivalente
+al de la medida Post.
+
+# Introducción
+
+Una revisión de los resultados del artículo del "Subestudio COVID" ha
+detectado que puede haberse dado un error al identificar la variable de
+"Depresión pre-confinamiento".
+
+A continuación, se analizan los métodos de análisis de datos y los resultados
+para determinar el error cometido y el impacto sobre los resultados.
+
+# Variables de depresión
+
+Las siguientes variables relacionadas con "depresión" se encuentran en el
+dataset completo con todas las variable "outcome" utilizadas en el artículo:
+
+```{r depression-vars, echo=TRUE}
+depr_vars <- dataset_outcomes |> select(matches("depression"))
+
+depr_vars |>
+  map(attr, "label") |>
+  map_chr(`%||%`, NA_character_) |>
+  enframe("Variable", "Label")
+```
+
+Las tres primeras variables provienen del dataset "Depression_ICD10.dta" y hacen
+referencia a las variantes de la variable de depresión calculadas
+según el algoritmo original de la CIE-10 en línea base (Pre-confinamiento).
+La primera de ellas corresponde a "Depresión a lo largo de la vida"
+(Lifetime depression), y la segunda y tercera a
+"episodio depresivo en los últimos 12 meses" (12-month depression)
+
+Las dos siguientes son el equivalente, también en la medida Pre, pero utilizando
+el mismo algoritmo de la entrevista telefónica (Post-confinamiento).
+A estas dos variables se les ha añadido el sufijo `_pre` al obtener
+la BDD colapsada con todos los outcomes.
+Es decir, `depression_pre` corresponde, de acuerdo al
+[documento de descripción][desc],
+a "Ocurrencia de un episodio depresivo", y según se entiende por la descripción
+en el documento y la sintaxis, hace referencia a "ocurrencia a lo largo de la
+vida", es decir, "Lifetime depression".
+
+[desc]: https://dauam-my.sharepoint.com/:w:/r/personal/marta_miret_uam_es/Documents/Edad%20con%20Salud/Documentacion%20Edad%20con%20Salud/Edad%20con%20salud%20-%20Subestudio%20COVID/Outcomes/Outcome%20descriptions/history/Comparable%20baseline%20variables/Depression_SubestudioCOVID_comparable2019.docx?d=wca40dd7862ac44219f9031f9a04cfc96&csf=1&web=1&e=WcdcAB
+
+Las dos últimas variables son las obtenidas de la entrevista telefónica y
+hacen referencia al período de 30 días inmediatamente anterior;
+es decir, sería también una variable de depresión a corto plazo,
+que en este caso se podría denominar "30-day depression".
+
+# Decisiones de análisis y modelado
+
+Con objeto de modelar la incidencia de depresión, se propuso descartar a todos
+los participantes que habían padecido depresión alguna vez en la vida,
+para lo cual se utilizó la variable `depression_pre`.
+Esta era la variable adecuada, ya que era la variable "Lifetime depression"
+calculada con el algoritmo equivalente al usado en la medida Post.
+Más adelante, se incluyó el cómputo de la tasa de prevalecia Pre / Post.
+Al hacer esto, se utilizó la misma variable que se venía usando,
+`depression_pre`, pasando por alto que no se trataba de medidas equivalentes,
+puesto que la Pre era "lifetime" y la Post era "30-day".
+
+A este respecto, nótese que no hay un algoritmo equivalente al usado
+en la medida Post para obtener la depresión a 12 meses en la medida
+Pre-confinamiento.
+Es decir, se puede utilizar `depression_lifetime` o `depression_12m` en
+la medida Pre usando el algoritmo original, o bien `depression_pre`
+("Lifetime depression") usando el algoritmo abreviado equivalente a la medida
+Post; pero no existe una variable "12-month depression" en la medida Pre
+equivalente a la variable "30-day depression" en la medida Post.
+
+# Resultados originales
+
+Se incluyen a continuación las tablas de resultados del artículo para poder
+comprobar que los resultados se reproducen con exactitud.
+
+## Descriptivos
+
+```{r descriptive-stats-table, tab.id="descriptive-stats-table", tab.cap=CAPTION_DESC_VARIABLES, cache=FALSE}
+total_descriptives_out
+```
+
+## Prevalencias
+
+```{r prevalence-table, tab.id="prevalence-table", tab.cap=CAPTION_PREVALENCES, cache=FALSE}
+prevalence_table_output
+```
+
+## Modelo de depressión
+
+```{r depression-coefficients-table, tab.id="depression-coefficients-table", tab.cap=CAPTION_DEPRESSION_FIT_NEW_TERMS, cache=FALSE}
+depression_coefficients_table
+```
+
+## Modelo de ideación suicida
+
+```{r suicidal-coefficients-table, tab.id="suicidal-coefficients-table", tab.cap=CAPTION_SUICIDAL_FIT_NEW_TERMS, cache=FALSE}
+suicidal_coefficients_table
+```
+
+# Revisión de los resultados
+
+## Descriptivos
+
+En la tabla de descriptivos, incluimos la variable `depression_12m` e
+identificamos unívocamente a qué medida de depresión hace referencia
+cada una de las dos variables de depresión en la medida Pre:
+La variable `depression_pre` pasa a ser considerada como "depresión a lo largo
+de la vida" y es identificada como tal en la tabla
+(etiqueta "Drepression (lifetime)").
+La variable `depression_12m` se identifica simplemente como "Depression"
+(haciendo referencia a "prevalencia de depresión a corto plazo")
+y se compara mediante el estadístico de contraste correspondiente con la medida
+Post.
+
+```{r var-descriptives-corrected, echo=TRUE}
+dataset_outcomes <- dataset_outcomes |>
+  mutate(
+    depression_lt  = depression_pre |> set_attr("label", "lifetime depression"),
+    depression_pre = depression_12m |> factor(labels = c("No", "Yes")) |>
+      set_attr("label", "12-month depression")
+  )
+
+dataset_outcomes_descr_correct <- dataset_outcomes %>% select(
+  ID_CONTACTO,
+  depression_lt, depression_pre, depression_post,
+  matches("^suicidal_(pre|post)$"),
+  all_of(all_preds)
+)
+
+quant_descriptives_out <- dataset_outcomes_descr_correct %>%
+  select(-ID_CONTACTO) %>%
+  describe(skew = FALSE, omit = TRUE) %>%
+  as.data.frame() %>%
+  mutate(
+    var      = rownames(.),
+    Variable = var_descriptors[var],
+    n        = n %>% as.integer() # Prevents printing it with 2 decimals
+  ) %>%
+  as_tibble() %>%
+  select(var, Variable, n, mean, sd) %>%
+  mutate(across(where(is.double), number, 1e-2))
+
+cat_descriptives_out <- dataset_outcomes_descr_correct %>%
+  select(where(is.factor)) %>%
+  frequencies_table(missing = FALSE)
+
+sample_contrast_vars <- dataset_outcomes_descr_correct %>%
+  select(ID_CONTACTO, ends_with(c("_pre", "post"))) %>%
+  pivot_longer(
+    -ID_CONTACTO,
+    names_to = c(".value", "Measure"),
+    names_pattern = "(.*)_(.*)"
+  ) %>%
+  mutate(
+    Measure = Measure %>% chartr("p", "P", x = .) %>% factor(MEASURE_LEVELS)
+  )
+
+sample_contrasts <- bind_rows(
+  sample_contrast_vars %>% paired_t_tests_df(Measure, ID_CONTACTO),
+  sample_contrast_vars %>% mcnemar_tests_df(Measure, ID_CONTACTO)
+) %>%
+  mutate(# There is always Pre and Post, so it is indifferent which one to use:
+    var     = var %>% paste0("_pre"),
+    p.value = p.value %>% format_pvalues()
+  ) %>%
+  left_join(
+    var_properties %>% select(var = predictor, labels_abbr),
+    by = "var"
+  ) %>%
+  select(labels_abbr, cat, p.value)
+
+
+quant_total_out <- quant_descriptives_out %>%
+  mutate(
+    var_cat = var_properties$labels_abbr[var],
+    Measure = var_properties$var_measure[var]
+  ) %>%
+  select(-var, -Variable) %>%
+  pivot_wider(names_from = Measure, values_from = n:sd) %>%
+  left_join(sample_contrasts, by = c(var_cat = "labels_abbr")) %>%
+  mutate(var_cat = var_cat %>% paste0(", mean (sd)")) %>%
+  select(var_cat, ends_with(c("Pre", "Post")), p.value) %>%
+  rename_with(str_replace, starts_with("mean"), "mean", "stat1") %>%
+  rename_with(str_replace, starts_with("sd"),   "sd",   "stat2") %>%
+  mutate(across(starts_with("stat2"), enclose, "(")) %>%
+  mutate(across(everything(), as.character)) %>%
+  mutate(is_cat = FALSE) %>% # For left-padding the paragraphs of categories
+  select(-starts_with("n_")) # Not reporting "N total"
+
+cat_total_out <- cat_descriptives_out %>%
+  group_by(Variable) %>%
+  mutate(
+    var_cat = var_properties$labels_abbr[Variable],
+    Measure = var_properties$var_measure[Variable],
+    stat1   = if_else(n() != 3 & Level == "Total", NA_real_, N),
+    stat2   = if_else(
+      Level == "Total",
+      NA_character_,
+      `Percent valid` %>% enclose("(")
+    )
+  ) %>%
+  left_join(
+    sample_contrasts,
+    by = c(var_cat = "labels_abbr", Level = "cat")
+  ) %>%
+  mutate(across(where(is.numeric), as.character)) %>%
+  ungroup() %>%
+  select(-Variable, -(N:`Percent valid`)) %>%
+  pivot_wider(
+    names_from  = Measure,
+    # values_from = n:stat2 # Not reporting "N total"
+    values_from = stat1:stat2
+  ) %>%
+  filter(!Level %in% c("Male", "No")) %>%
+  select(var_cat, Level, ends_with(c("Pre", "Post")), p.value) %>%
+  mutate(aux = var_cat) %>%
+  group_by(aux) %>%
+  mutate(
+    Level = Level %>% if_else(
+        condition = !. %in% c("Yes", "Total") & n() == 2,
+        true      = enclose(., "(") %>% paste0(", n (%)"),
+        false     = .
+      ),
+    var_cat = if_else(
+      Level %in% c("Yes", "Total"),
+      var_cat %>% paste0(", n (%)"),
+      if_else(
+        n() == 2 & !Level %in% c("Yes", "Total"),
+        var_cat %>% paste(Level),
+        paste0(Level)
+      )
+    ), # For left-padding the paragraphs of categories:
+    is_cat = !Level %in% c("Yes", "Total") & n() != 2,
+  ) %>%
+  filter(!(n() == 2 & Level == "Total")) %>%
+  ungroup() %>%
+  select(-aux, -Level)
+
+total_descriptives_out <- quant_total_out %>%
+  bind_rows(cat_total_out) %>%
+  slice( # Custom order:
+    7,     # Age
+    11,    # Sex (Female)
+    12:16, # Education level (Less than primary, Primary, Secondary, Tertiary)
+    8,     # Depression lifetime
+    9,     # Depression
+    10,    # Suicidal ideation
+    4,     # Resilience
+    23,    # Living alone
+    2,     # Social support
+    1,     # Loneliness
+    21:22, # COVID-19 co-habitant, COVID-19 concern,
+    17:20, # COVID-19 severity (Not infected, Infected, Hospitalized)
+    3,     # WHODAS
+    31:35, # Physical pain (None, Light, Moderate, Severe)
+    5:6,   # Working screen time, Non-working screen time
+    28,    # Home quietness
+    29:30, # Economy worsened, Unemployed
+    24:27  # Physical activity (Low, Moderate, High)
+  )
+
+cat_index <- total_descriptives_out %>% pull(is_cat)
+total_descriptives_out <- total_descriptives_out %>% select(-is_cat)
+
+extra_footnote  <- c(13, 14, 21)
+
+total_descriptives_out <- total_descriptives_out %>%
+  mutate(
+    var_cat = var_cat %>% paste0(
+      if_else(
+        row_number() %in% extra_footnote,
+        FOOTNOTE_SYMBOL[1] %>% enclose('^'),
+        ""
+      )
+    )
+  ) %>%
+  flextable() %>%
+  set_header_df(
+    tibble(
+      col_keys = total_descriptives_out %>% colnames(),
+      measure  = c(
+        # Not reporting "N total"
+        # "Variable / Category", PRE_LEVEL  %>% rep(3), POST_LEVEL %>% rep(3)
+        "Variable",
+        MEASURE_LEVELS %>% paste0("-confinement") %>% rep(each = 2),
+        "*p* value"
+      )
+    )
+  ) %>%
+  colformat_md(j = 6, part = "header") %>%
+  colformat_md(j = 1, part = "all") %>%
+  add_footer(var_cat = DESCRIPTIVES_FOOTER) %>%
+  merge_at(part = "footer") %>%
+  footnote(
+    value       = as_paragraph(
+      c(
+        FOOTNOTE_VARS_SCALE,
+        var_descriptors[c("rel_isolated", "rel_concerned", "severity")] %>%
+          paste0('.')
+      )
+    ),
+    i           = c(11, 15:17),
+    j           = 1,
+    ref_symbols = FOOTNOTE_SYMBOL[1:4]
+  ) %>%
+  footnote(
+    value       = as_paragraph(FOOTNOTE_DESCRIPTIVE_P_VALUES),
+    i           = 1,
+    j           = 6,
+    part        = "header",
+    ref_symbols = '*'
+  ) %>%
+  merge_h(part = "header") %>%
+  theme_booktabs() %>%
+  flextable::style(i = cat_index, j = 1, pr_p = fp_par(padding.left = 30)) %>%
+  align(j = c(2, 4, 6), align = "right", part = "all") %>%
+  align(i = 1, align = "center", part = "header") %>%
+  font(fontname = "Times New Roman", part = "all") %>%
+  padding(padding.top = 1, padding.bottom = 1) %>%
+  border(border.bottom = fp_border(style = "none"), part = "footer") %>%
+  autofit()
+```
+
+```{r descriptive-stats-table-correct, tab.id="descriptive-stats-table-correct", tab.cap=CAPTION_DESC_VARIABLES, cache=FALSE}
+total_descriptives_out
+```
+
+Al contrario de lo expresado en el artículo, el estadístico de contraste indica
+**un aumento significativo entre las medidas Pre y Post en**
+**la tasa de depresión a corto plazo en la muestra**.
+
+## Tasas de prevalencia
+
+Las tasas de prevalencia, idealmente, deberían haberse calculado con la variable
+`depression_12m`, dado que se trata de la variable que es más comparable
+a `depression_post` por hacer referencia a la prevalencia a corto plazo.
+
+A continuación se dan las tasas de prevalencia calculadas utilizando
+esta variable.
+
+```{r depression-prevalence-corrected, echo=TRUE}
+depression_correct <- dataset_outcomes_std %>%
+  select(
+    ID_CONTACTO,
+    depression_12m, depression_post,
+    any_of(depr_preds),
+    starts_with(time_varying_preds),# These are needed for the linear model with
+    weights                         #   negative cases in the Pre measure
+  ) %>%
+  rename(Pre = depression_12m, Post = depression_post) %>%
+  mutate_at(vars(Pre, Post), factor, labels = c("No", "Yes")) %>%
+  mutate( # Necessary for the prevalence estimates by age:
+    Age = (age_post + 50L) %>% group_ages() # Because it is centered at 50
+  )
+
+depression_pre_correct <- dataset_outcomes_compare_excluded %>%
+  select(number_id, Pre = depression_12m, sex, age_pre, weights) %>%
+  mutate(
+    Age = age_pre %>% group_ages(),
+    Pre = Pre |> factor(levels = 0:1, labels = c("No", "Yes"))
+  )
+
+depression_prevalence_pre <- depression_pre_correct %>%
+  {
+    bind_rows(
+      bind_cols(
+        tibble(Variable = "Total", Group = "Total"),
+        estimate_prevalence(., Pre, weights, "Yes")
+      ),
+      tibble(Variable = "Sex", Group = "Sex"),
+      group_by(., Group = sex) %>% estimate_prevalence(Pre, weights, "Yes") %>%
+        add_column(Variable = "Sex"),
+      tibble(Variable = "Age", Group = "Age"),
+      group_by(., Group = Age) %>% estimate_prevalence(Pre, weights, "Yes") %>%
+        add_column(Variable = "Age")
+    )
+  }
+
+depression_prevalence_post <- depression_correct %>% {
+  bind_rows(
+    bind_cols(
+      tibble(Variable = "Total", Group = "Total"),
+      estimate_prevalence(., Post, weights, "Yes"),
+      mcnemar_test_df_pre_post(., Pre, Post, "Yes", weight = weights)
+    ),
+    tibble(Variable = "Sex", Group = "Sex"),
+    group_by(., Group = sex) %>% {
+      full_join(
+        estimate_prevalence(., Post, weights, "Yes"),
+        mcnemar_test_df_pre_post(., Pre, Post, "Yes", weight = weights),
+        by = "Group"
+      )
+    } %>%
+      add_column(Variable = "Sex"),
+    tibble(Variable = "Age", Group = "Age"),
+    group_by(., Group = Age) %>% {
+      full_join(
+        estimate_prevalence(., Post, weights, "Yes"),
+        mcnemar_test_df_pre_post(., Pre, Post, "Yes", weight = weights),
+        by = "Group"
+      )
+    } %>%
+      add_column(Variable = "Age")
+  )
+}
+```
+
+```{r prevalence-estimates-collapsed, cache=FALSE, echo=TRUE}
+```
+
+```{r prevalence-table-corrected, tab.id="prevalence-table-corrected", tab.cap=CAPTION_PREVALENCES, cache=FALSE}
+prevalence_table_output
+```
+
+Las **tasas de prevalencia en la medida Pre** estimadas en la población
+son **mucho menores a las reportadas** en el artículo.
+En consecuencia, **todas las tasas de prevalencia**, tanto en la población total
+como segmentada por edad y sexo, **aumentan significativamente** de la medida
+Pre a la Post.
+En el artículo se informa de un **descenso significativo en**
+**la prevalencia de depresión en la población de 50 o más años**,
+cuando en realidad hay un aumento significativo,
+mientras que en las otras tasas se reportan cambios no significativos.
+
+## Modelos de regresión logística
+
+El análisis de regresión logística multivariado de la incidencia de depresión
+tiene por objeto modelar la incidencia Post-confinamiento en aquellas personas
+que no hubieran tenido depresión nunca antes en su vida.
+Por lo tanto, está correctamente aplicado el filtrado de casos aplicando la
+variable `depression_pre`, o "Lifetime depression" pre-confinamiento.
+No obstante, conviene tener en cuenta que en este caso SÍ se ha utilizado
+el algoritmo equivalente a la medida Post.
+
+# Conclusiones
+
+* Existe un aumento significativo en la tasa de depresión a corto plazo
+  en la muestra entre las medidas Pre y Post.
+  
+* Las tasas de prevalencia estimadas en la población en la medida Pre son mucho
+  menores a las reportadas en el artículo, tanto para la población general como
+  segmentada por sexo o edad.
+
+* Todas las tasas de prevalencia estimadas en la población, tanto la total
+  como las segmentadas por edad y sexo, aumentan significativamente.
+  Esto es además **más relevante si se tiene en cuenta que se está comparando**
+  **un período de 12 meses con uno de 30 días**.
+  
+* Los modelos que estiman la asociación de factores de sociodemográficos y de
+  salud mental con la incidencia de depresión e ideación suicida no cambian.
+
+# Recomendaciones
+
+* Publicar enmienda en Epidemiology & Psychiatric Sciences reportando estas
+  estimaciones corregidas.
+  
+* Alternativamente al uso de la variable `depression_12m` usada aquí,
+  se puede generar un outcome en la medida Pre-confinamiento utilizando el
+  mismo algoritmo que en la medida Post, para poder comparar ambos
+  de manera más precisa.
+
+```{r session-info, results='markup', include=FALSE}
+```
