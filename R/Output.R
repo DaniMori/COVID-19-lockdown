@@ -32,7 +32,7 @@ QUOTING_CHARS    <- c(
 )
 QT_CLOSING_CHARS <- c(
   '*', '**', '"', "'", '_', '~', '`', ')', ']', '}', '^', '__'
-) %>% 
+) |> 
   set_names(QUOTING_CHARS)
 
 INTERCEPT_TERM <- "(Intercept)"
@@ -53,7 +53,7 @@ enumerate_levels <- function(.data, var, last = ", and ", italics = FALSE) {
   assert_is_data.frame(.data)
   parse_varnames(as_label(var), .data)
   
-  var <- .data %>% pull(!!var)
+  var <- .data |> pull(!!var)
   
   assert_class_is_one_of(var, c("character", "factor"))
   if (is.character(var)) var <- factor(var)
@@ -62,11 +62,11 @@ enumerate_levels <- function(.data, var, last = ", and ", italics = FALSE) {
   
   
   ## Main: ----
-  result <- var %>% levels()
+  result <- var |> levels()
   
-  if (italics) result <- result %>% enclose("*")
+  if (italics) result <- result |> enclose("*")
   
-  result %>% glue_collapse(sep = ", ", last = last)
+  result |> glue_collapse(sep = ", ", last = last)
 }
 
 ### Statistical tables: ----
@@ -85,11 +85,11 @@ frequencies_table <- function(.data,
   
   assert_is_data.frame(.data)
   
-  totals    <- totals    %>% parse_bool()
-  missing   <- missing   %>% parse_bool()
-  miss_cat  <- miss_cat  %>% parse_string()
-  pct_valid <- pct_valid %>% parse_bool()
-  pct_total <- pct_total %>% parse_bool()
+  totals    <- totals    |> parse_bool()
+  missing   <- missing   |> parse_bool()
+  miss_cat  <- miss_cat  |> parse_string()
+  pct_valid <- pct_valid |> parse_bool()
+  pct_total <- pct_total |> parse_bool()
   if (!missing) pct_total <- FALSE # If no missing, don't compute % over total
   
   if (is_not_missing(.segmentation)) {
@@ -100,7 +100,7 @@ frequencies_table <- function(.data,
     
     if (missing) {
       
-      .data <- .data %>% mutate_at(vars(!!.segmentation), fct_explicit_na)
+      .data <- .data |> mutate_at(vars(!!.segmentation), fct_explicit_na)
     }
     
   } else {
@@ -111,11 +111,11 @@ frequencies_table <- function(.data,
   
   ## Main: ----
   
-  .data <- .data %>% select_if(is.factor)
+  .data <- .data |> select_if(is.factor)
   
-  result <- .data %>% select(-!!.segmentation) %>% imap(
+  result <- .data |> select(-!!.segmentation) |> imap(
     ~{
-      if (!missing) .data <- .data %>% filter_at(.y, is_not_na)
+      if (!missing) .data <- .data |> filter_at(.y, is_not_na)
       
       result <- if (is_null(.segmentation)) {
         
@@ -123,16 +123,16 @@ frequencies_table <- function(.data,
         
         if (missing) {
           
-          res <- res %>% mutate_at(.y, fct_explicit_na, na_level = miss_cat)
+          res <- res |> mutate_at(.y, fct_explicit_na, na_level = miss_cat)
         }
         
         if (!"valid_percent" %in% colnames(res)) {
           
-          res <- res %>% mutate(valid_percent = percent)
+          res <- res |> mutate(valid_percent = percent)
         }
         
-        if (!pct_total) res <- res %>% select(-percent)
-        if (!pct_valid) res <- res %>% select(-valid_percent)
+        if (!pct_total) res <- res |> select(-percent)
+        if (!pct_valid) res <- res |> select(-valid_percent)
         
         res
         
@@ -144,16 +144,16 @@ frequencies_table <- function(.data,
       ## TODO: totals if (is_not_null(.segmentation)) ??
       if (totals) {
         
-        result <- result %>%
-          adorn_totals() %>%
-          mutate_at(.y, fct_inorder) %>%
-          mutate_at(.y, fct_relevel, "Total") %>%
+        result <- result |>
+          adorn_totals() |>
+          mutate_at(.y, fct_inorder) |>
+          mutate_at(.y, fct_relevel, "Total") |>
           arrange(!!sym(.y))
       }
       
-      result <- result %>%
-        rename_at(1, ~"Level") %>%
-        mutate(Level = Level %>% as.character())
+      result <- result |>
+        rename_at(1, ~"Level") |>
+        mutate(Level = Level |> as.character())
       
       result <- result %>% {
         
@@ -167,22 +167,22 @@ frequencies_table <- function(.data,
             
             total_pcts <- if (pct_total) {
               
-              adorn_percentages(.) %>%
-                adorn_pct_formatting(2) %>%
+              adorn_percentages(.) |>
+                adorn_pct_formatting(2) |>
                 rename_with(paste0, -Level, "_pct")
             }
             
             valid_pcts <- if (pct_valid) {
               
-              filter(., Level != "(Missing)") %>%
-                adorn_percentages() %>%
-                adorn_pct_formatting(2) %>%
+              filter(., Level != "(Missing)") |>
+                adorn_percentages() |>
+                adorn_pct_formatting(2) |>
                 rename_with(paste0, -Level, "_valid_pct")
             }
             
             pcts <- if (pct_total & pct_valid) {
               
-              total_pcts %>% full_join(valid_pcts, by = "Level")
+              total_pcts |> full_join(valid_pcts, by = "Level")
               
             } else {
               
@@ -191,7 +191,7 @@ frequencies_table <- function(.data,
             
             full_join(
               adorn_totals(., where = "col"),
-              # adorn_percentages(.) %>% adorn_pct_formatting(2),
+              # adorn_percentages(.) |> adorn_pct_formatting(2),
               pcts,
               by     = "Level"
               # suffix = c("", "_pct")
@@ -215,43 +215,43 @@ frequencies_table <- function(.data,
     }
   )
   
-  suppressWarnings(result <- result %>% bind_rows(.id = "Variable"))
+  suppressWarnings(result <- result |> bind_rows(.id = "Variable"))
   
   result <- if (is_not_null(.segmentation)) {
     
-    result %>%
+    result |>
       select(
         any_of(
           c(
             "Variable",
             "Level",
-            .data %>%
-              pull(!!.segmentation) %>%
-              levels() %>%
-              outer(c("", "_pct", "_valid_pct"), paste0) %>%
+            .data |>
+              pull(!!.segmentation) |>
+              levels() |>
+              outer(c("", "_pct", "_valid_pct"), paste0) |>
               t(),
             "Total"
           )
         )
-      ) %>%
-      mutate_at(vars(ends_with("_pct")), ~as.character(glue("({.})"))) %>%
-      group_by(Variable) # %>%
-    # mutate(Total_pct = paste0('(', Total / sum(Total)) %>% percent(1e-2), ')')
+      ) |>
+      mutate_at(vars(ends_with("_pct")), ~as.character(glue("({.})"))) |>
+      group_by(Variable) # |>
+    # mutate(Total_pct = paste0('(', Total / sum(Total)) |> percent(1e-2), ')')
     
   } else {
     
-    result <- result %>% rename(N = n)
+    result <- result |> rename(N = n)
     
-    if (pct_total) result <- result %>% rename(Percent = percent)
-    if (pct_valid) result <- result %>% rename(`Percent valid` = valid_percent)
+    if (pct_total) result <- result |> rename(Percent = percent)
+    if (pct_valid) result <- result |> rename(`Percent valid` = valid_percent)
     
     result
   }
   
-  result# %>%
-    # mutate(group = Variable)                                           %>%
-    # group_by(group)                                                    %>%
-    # ungroup()                                                          %>%
+  result# |>
+    # mutate(group = Variable)                                           |>
+    # group_by(group)                                                    |>
+    # ungroup()                                                          |>
     # select(-group)
 }
 
@@ -259,22 +259,22 @@ correlations_table <- function(.data, significance = FALSE) {
   
   ## Argument checking and formatting: ----
   assert_is_data.frame(.data)
-  significance <- significance %>% parse_bool()
+  significance <- significance |> parse_bool()
   
   
   ## Main: ----
   
-  .data <- .data %>% select_if(is.numeric)
+  .data <- .data |> select_if(is.numeric)
   
-  result <- .data %>% cor(use = "pairwise.complete.obs")
+  result <- .data |> cor(use = "pairwise.complete.obs")
   
   result[upper.tri(result, diag = TRUE)] <- NA
   
-  result %>% data.frame(check.names = FALSE) %>%
-    rownames_to_column("Variable")           %>%
+  result |> data.frame(check.names = FALSE) |>
+    rownames_to_column("Variable")           |>
     as_tibble()                              %>%
-    select_at(-length(.))                    %>%
-    slice(-1)                                %>%
+    select_at(-length(.))                    |>
+    slice(-1)                                |>
     mutate_if(is.numeric, label_number(1e-3))
 }
 
@@ -297,10 +297,10 @@ format_prop_like <- function(values, sig = 3, drop_0 = TRUE) {
   
   ## Main: ----
   
-  result <- values %>% round(digits = sig) %>%
+  result <- values |> round(digits = sig) |>
     format(digits = sig, nsmall = sig)
   
-  if (drop_0) result <- result %>% str_remove(LEADING_ZERO_PATTERN)
+  if (drop_0) result <- result |> str_remove(LEADING_ZERO_PATTERN)
   
   result
 }
@@ -337,19 +337,19 @@ print_pvalue <- function(p_value,
   
   ## Main: ----
   formatted_p <- P_SYMBOL
-  if (italics)   formatted_p <- formatted_p %>% enclose('*')
-  if (underline) formatted_p <- formatted_p %>% enclose('__')
+  if (italics)   formatted_p <- formatted_p |> enclose('*')
+  if (underline) formatted_p <- formatted_p |> enclose('__')
   
-  result <- p_value %>% format_pvalues(sig, drop_0)
+  result <- p_value |> format_pvalues(sig, drop_0)
 
   if (preffix) {
     
-    eq <- if (result %>% str_detect(TRUNCATION_PATTERN)) "" else EQUAL_SYMBOL
+    eq <- if (result |> str_detect(TRUNCATION_PATTERN)) "" else EQUAL_SYMBOL
     glue(OUTPUT_PATTERN)
     
   } else {
     
-    result # %>% str_remove(TRUNCATION_PATTERN) ## TODO: Check this?
+    result # |> str_remove(TRUNCATION_PATTERN) ## TODO: Check this?
   }
 }
 
@@ -368,11 +368,11 @@ format_pvalues <- function(p_values, sig = 3, drop_0 = TRUE) {
 
   
   ## Main: ----
-  result <- p_values    %>%
-    round(digits = sig) %>%
+  result <- p_values    |>
+    round(digits = sig) |>
     format.pval(eps = 10^(-sig), nsmall = sig, na.form = '')
   
-  result <- result %>% str_replace(
+  result <- result |> str_replace(
     LEADING_ZERO_PATTERN,
     if (drop_0) " " else " 0"
   )
@@ -397,7 +397,7 @@ print_z_test <- function(z_test,
   ## Argument checking and formatting: ----
   
   assert_is_data.frame(z_test)
-  assert_are_identical(z_test %>% nrow(), 1L)
+  assert_are_identical(z_test |> nrow(), 1L)
   parse_varnames(c(Z_STAT, P_VALUE), z_test)
   
   p_sig       <- parse_whole_number(p_sig)
@@ -411,8 +411,8 @@ print_z_test <- function(z_test,
   
   stat_name <- if (italics) ITALICS_MOD else STAT_NAME
   
-  z_stat  <- z_test %>% pull(!!Z_STAT)  %>% number(10^(-sig))
-  p_value <- z_test %>% pull(!!P_VALUE) %>%
+  z_stat  <- z_test |> pull(!!Z_STAT)  |> number(10^(-sig))
+  p_value <- z_test |> pull(!!P_VALUE) |>
     print_pvalue(
       sig       = p_sig,
       drop_0    = drop_0,
@@ -433,9 +433,9 @@ print_t_test <- function(t_test,
                          italics     = FALSE,
                          underline_p = FALSE) {
   ## Constants: ----
-  OUTPUT_PATTERN <- "${stat_name}_{{{df}}}$ = {t_stat}, {p_value}"
+  OUTPUT_PATTERN <- "$[stat_name]_{[df]}$ = [t_stat], [p_value]"
   STAT_NAME      <- "t"
-  UPRIGHT_MOD    <- glue("\\mathrm{{{STAT_NAME}}}")
+  UPRIGHT_MOD    <- glue("\\mathrm{[STAT_NAME]}", .open = '[', .close = ']')
   
   ## Argument checking and formatting: ----
   stat_var <- sym(stat_var)
@@ -443,7 +443,7 @@ print_t_test <- function(t_test,
   df_var   <- sym(df_var)
   
   assert_is_data.frame(t_test)
-  assert_are_identical(t_test %>% nrow(), 1L)
+  assert_are_identical(nrow(t_test), 1L)
   parse_varnames(c(stat_var, pval_var, df_var), t_test)
   
   p_sig       <- parse_whole_number(p_sig)
@@ -457,19 +457,19 @@ print_t_test <- function(t_test,
   
   stat_name <- if (italics) STAT_NAME else UPRIGHT_MOD
   
-  t_stat  <- t_test %>% pull(!!stat_var)  %>% number(10^(-sig))
-  p_value <- t_test %>% pull(!!pval_var) %>%
+  t_stat  <- t_test |> pull(!!stat_var)  |> number(10^(-sig))
+  p_value <- t_test |> pull(!!pval_var) |>
     print_pvalue(
       sig       = p_sig,
       drop_0    = drop_0,
       italics   = italics,
       underline = underline_p)
   
-  df      <- t_test %>% pull(!!df_var)
+  df      <- t_test |> pull(!!df_var)
   df_prec <- if (is_a_whole_number(df)) 0 else -2
   df      <- df %>% number(., 10^df_prec, big.mark = '')
   
-  glue(OUTPUT_PATTERN)
+  glue(OUTPUT_PATTERN, .open = '[', .close = ']')
 }
 
 print_chisq_test <- function(test,
@@ -484,16 +484,16 @@ print_chisq_test <- function(test,
   ## Constants: ----
   OUTPUT_PATTERN <- "${stat_name}^2{df}$ = {chisq_stat}, {p_value}"
   STAT_NAME      <- "\\chi"
-  UPRIGHT_MOD    <- glue("\\mathrm{{{STAT_NAME}}}")
+  UPRIGHT_MOD    <- glue("\\mathrm{[STAT_NAME]}", .open = '[', .close = ']')
 
   ## Argument checking and formatting: ----
   
   assert_is_data.frame(test)
-  assert_are_identical(test %>% nrow(), 1L)
+  assert_are_identical(test |> nrow(), 1L)
   
-  stat_var <- parse_string(stat_var) %>% parse_varnames(test, sym = "yes")
-  pval_var <- parse_string(pval_var) %>% parse_varnames(test, sym = "yes")
-  df_var   <- parse_string(df_var)   %>% parse_varnames(test, sym = "yes")
+  stat_var <- parse_string(stat_var) |> parse_varnames(test, sym = "yes")
+  pval_var <- parse_string(pval_var) |> parse_varnames(test, sym = "yes")
+  df_var   <- parse_string(df_var)   |> parse_varnames(test, sym = "yes")
   
   sig         <- parse_whole_number(sig)
   p_sig       <- parse_whole_number(p_sig)
@@ -506,16 +506,17 @@ print_chisq_test <- function(test,
   
   stat_name <- if (italics) STAT_NAME else UPRIGHT_MOD
   
-  chisq_stat <- test %>% pull(!!stat_var) %>% number(10^(-sig))
-  p_value    <- test %>% pull(!!pval_var) %>%
+  chisq_stat <- test |> pull(!!stat_var) |> number(10^(-sig))
+  p_value    <- test |> pull(!!pval_var) |>
     print_pvalue(
       sig       = p_sig,
       drop_0    = drop_0,
       italics   = italics,
       underline = underline_p
     )
-  df         <- test %>% pull(!!df_var) %>% unname()
-  df <- if (df %>% is_identical_to_na()) "" else glue("_{{{df}}}")
+  df         <- test |> pull(!!df_var) |> unname()
+  df <- if (df |> is_identical_to_na()) ""
+        else                          glue("_{[df]}", .open = '[', .close = ']')
   
   glue(OUTPUT_PATTERN)
 }
@@ -531,19 +532,19 @@ print_F_test <- function(test,
                          italics     = FALSE,
                          underline_p = FALSE) {
   ## Constants: ----
-  OUTPUT_PATTERN <- "${stat_name}_{{{df_num}, {df_den}}}$ = {F_stat}, {p_value}"
+  OUTPUT_PATTERN <- "$[stat_name]_{[df_num], [df_den]}$ = [F_stat], [p_value]"
   STAT_NAME      <- "F"
-  UPRIGHT_MOD    <- glue("\\mathrm{{{STAT_NAME}}}")
+  UPRIGHT_MOD    <- glue("\\mathrm{[STAT_NAME]}", .open = '[', .close = ']')
   
   ## Argument checking and formatting: ----
   
   assert_is_data.frame(test)
-  assert_are_identical(test %>% nrow(), 1L)
+  assert_are_identical(test |> nrow(), 1L)
   
-  stat_var   <- parse_string(stat_var)   %>% parse_varnames(test, sym = "yes")
-  pval_var   <- parse_string(pval_var)   %>% parse_varnames(test, sym = "yes")
-  df_num_var <- parse_string(df_num_var) %>% parse_varnames(test, sym = "yes")
-  df_den_var <- parse_string(df_den_var) %>% parse_varnames(test, sym = "yes")
+  stat_var   <- parse_string(stat_var)   |> parse_varnames(test, sym = "yes")
+  pval_var   <- parse_string(pval_var)   |> parse_varnames(test, sym = "yes")
+  df_num_var <- parse_string(df_num_var) |> parse_varnames(test, sym = "yes")
+  df_den_var <- parse_string(df_den_var) |> parse_varnames(test, sym = "yes")
   
   sig         <- parse_whole_number(sig)
   p_sig       <- parse_whole_number(p_sig)
@@ -556,18 +557,18 @@ print_F_test <- function(test,
   
   stat_name <- if (italics) STAT_NAME else UPRIGHT_MOD
   
-  F_stat  <- test %>% pull(!!stat_var) %>% number(10^(-sig))
-  p_value <- test %>% pull(!!pval_var) %>%
+  F_stat  <- test |> pull(!!stat_var) |> number(10^(-sig))
+  p_value <- test |> pull(!!pval_var) |>
     print_pvalue(
       sig       = p_sig,
       drop_0    = drop_0,
       italics   = italics,
       underline = underline_p)
   
-  df_num  <- test %>% pull(!!df_num_var) %>% unname()
-  df_den  <- test %>% pull(!!df_den_var) %>% unname()
+  df_num  <- test |> pull(!!df_num_var) |> unname()
+  df_den  <- test |> pull(!!df_den_var) |> unname()
 
-  glue(OUTPUT_PATTERN)
+  glue(OUTPUT_PATTERN, .open = '[', .close = ']')
 }
 
 print_cor_test <- function(test,
@@ -586,20 +587,20 @@ print_cor_test <- function(test,
   OUTPUT_PATTERN_EST <- "${est_name}$ = {cor_est} "
   OUTPUT_PATTERN     <- "${stat_name}{df}$ = {cor_stat}, {p_value}"
   EST_NAME           <- "\\rho"
-  UPRIGHT_EST        <- glue("\\mathrm{{{EST_NAME}}}")
+  UPRIGHT_EST        <- glue("\\mathrm{[EST_NAME]}", .open = '[', .close = ']')
   STAT_NAME          <- "t"
-  UPRIGHT_STAT       <- glue("\\mathrm{{{STAT_NAME}}}")
+  UPRIGHT_STAT       <- glue("\\mathrm{[STAT_NAME]}", .open = '[', .close = ']')
   
   
   ## Argument checking and formatting: ----
   
   assert_is_data.frame(test)
-  assert_are_identical(test %>% nrow(), 1L)
+  assert_are_identical(test |> nrow(), 1L)
   
-  est_var  <- parse_string(est_var)  %>% parse_varnames(test, sym = "yes")
-  stat_var <- parse_string(stat_var) %>% parse_varnames(test, sym = "yes")
-  pval_var <- parse_string(pval_var) %>% parse_varnames(test, sym = "yes")
-  df_var   <- parse_string(df_var)   %>% parse_varnames(test, sym = "yes")
+  est_var  <- parse_string(est_var)  |> parse_varnames(test, sym = "yes")
+  stat_var <- parse_string(stat_var) |> parse_varnames(test, sym = "yes")
+  pval_var <- parse_string(pval_var) |> parse_varnames(test, sym = "yes")
+  df_var   <- parse_string(df_var)   |> parse_varnames(test, sym = "yes")
   
   est_sig     <- parse_whole_number(est_sig)
   stat_sig    <- parse_whole_number(stat_sig)
@@ -615,9 +616,9 @@ print_cor_test <- function(test,
   es_name   <- if (italics) EST_NAME  else glue(UPRIGHT_EST)
   stat_name <- if (italics) STAT_NAME else glue(UPRIGHT_STAT)
   
-  cor_est  <- test %>% pull(!!est_var)  %>% format_prop_like(est_sig)
-  cor_stat <- test %>% pull(!!stat_var) %>% number(10^(-stat_sig))
-  p_value  <- test %>% pull(!!pval_var) %>%
+  cor_est  <- test |> pull(!!est_var)  |> format_prop_like(est_sig)
+  cor_stat <- test |> pull(!!stat_var) |> number(10^(-stat_sig))
+  p_value  <- test |> pull(!!pval_var) |>
     print_pvalue(
       sig       = p_sig,
       drop_0    = drop_0,
@@ -625,8 +626,9 @@ print_cor_test <- function(test,
       underline = underline_p
     )
   
-  df         <- test %>% pull(!!df_var) %>% unname()
-  df <- if (df %>% is_identical_to_na()) "" else glue("_{{{df}}}")
+  df         <- test |> pull(!!df_var) |> unname()
+  df <- if (df |> is_identical_to_na()) ""
+        else                          glue("_{[df]}", .open = '[', .close = ']')
   
   if (estimate) {
     
@@ -648,14 +650,14 @@ print_lr_test <- function(test,
   P_VALUE        <- sym("P(>|Chi|)")
   OUTPUT_PATTERN <- "${stat_name}^2{df}$ = {chisq_stat}, {p_value}"
   STAT_NAME      <- "\\chi"
-  UPRIGHT_MOD    <- glue("\\mathrm{{{STAT_NAME}}}")
+  UPRIGHT_MOD    <- glue("\\mathrm{[STAT_NAME]}", .open = '[', .close = ']')
   
   ## Argument checking and formatting: ----
   
   assert_is_data.frame(test)
-  assert_are_identical(test %>% nrow(), 2L)
+  assert_are_identical(test |> nrow(), 2L)
   parse_varnames(c(CHISQ_STAT, P_VALUE, DF), test)
-  test <- test %>% slice(2)
+  test <- test |> slice(2)
   
   p_sig       <- parse_whole_number(p_sig)
   sig         <- parse_whole_number(sig)
@@ -668,9 +670,9 @@ print_lr_test <- function(test,
 
   stat_name <- if (italics) STAT_NAME else UPRIGHT_MOD
   
-  chisq_stat <- test %>% pull(!!CHISQ_STAT) %>% number(10^(-sig))
-  df         <- test %>% pull(!!DF)
-  p_value    <- test %>% pull(!!P_VALUE) %>%
+  chisq_stat <- test |> pull(!!CHISQ_STAT) |> number(10^(-sig))
+  df         <- test |> pull(!!DF)
+  p_value    <- test |> pull(!!P_VALUE) |>
     print_pvalue(
       sig       = p_sig,
       drop_0    = drop_0,
@@ -693,14 +695,14 @@ print_lavaan_lr_test <- function(test,
   P_VALUE        <- sym("Pr(>Chisq)")
   OUTPUT_PATTERN <- "${stat_name}^2_{df}$ = {chisq_stat}, {p_value}"
   STAT_NAME      <- "\\chi"
-  UPRIGHT_MOD    <- glue("\\mathrm{{{STAT_NAME}}}")
+  UPRIGHT_MOD    <- glue("\\mathrm{[STAT_NAME]}", .open = '[', .close = ']')
 
   ## Argument checking and formatting: ----
   
   assert_is_data.frame(test)
-  assert_are_identical(test %>% nrow(), 2L)
+  assert_are_identical(test |> nrow(), 2L)
   parse_varnames(c(CHISQ_STAT, P_VALUE, DF), test)
-  test <- test %>% slice(2)
+  test <- test |> slice(2)
   
   p_sig       <- parse_whole_number(p_sig)
   sig         <- parse_whole_number(sig)
@@ -713,9 +715,9 @@ print_lavaan_lr_test <- function(test,
 
   stat_name <- if (italics) STAT_NAME else UPRIGHT_MOD
   
-  chisq_stat <- test %>% pull(!!CHISQ_STAT) %>% number(10^(-sig))
-  df         <- test %>% pull(!!DF)
-  p_value    <- test %>% pull(!!P_VALUE)    %>%
+  chisq_stat <- test |> pull(!!CHISQ_STAT) |> number(10^(-sig))
+  df         <- test |> pull(!!DF)
+  p_value    <- test |> pull(!!P_VALUE)    |>
     print_pvalue(
       sig       = p_sig,
       drop_0    = drop_0,
@@ -737,7 +739,7 @@ print_ci <- function(lower, upper, sig = 3, quoting = '[') {
   assert_is_a_number(upper)
   assert_is_a_natural_number(sig)
   
-  quoting <- quoting %>% match.arg(QUOTING_CHARS)
+  quoting <- quoting |> match.arg(QUOTING_CHARS)
   
   
   ## Main: ----
@@ -755,24 +757,24 @@ format_ci <- function(lower, upper, sig = 3, quoting = '[') {
   assert_is_numeric(upper)
   # assert_is_a_natural_number(sig) ## TODO: assertive.extra not compiled in 3.6.3
   
-  quoting <- quoting %>% match.arg(QUOTING_CHARS)
+  quoting <- quoting |> match.arg(QUOTING_CHARS)
   
   
   ## Main: ----
   paste(
-    lower %>% number(10^-sig, big.mark = ""),
-    upper %>% number(10^-sig, big.mark = ""),
+    lower |> number(10^-sig, big.mark = ""),
+    upper |> number(10^-sig, big.mark = ""),
     sep = SEPARATOR
-  ) %>%
+  ) |>
     enclose(quoting)
 }
 
 enclose <- function(strings, quoting = QUOTING_CHARS, omit_na = TRUE) {
   
   ## Argument checking and formatting: ----
-  strings <- strings %>% parse_char()
+  strings <- strings |> parse_char()
   quoting <- match.arg(quoting)
-  omit_na <- omit_na %>% parse_bool()
+  omit_na <- omit_na |> parse_bool()
 
   ## Main: ----
   result <- paste0(quoting, strings, QT_CLOSING_CHARS[quoting])
@@ -799,7 +801,7 @@ format_term_label <- function(coef_table, .data, .labels, add_ref = TRUE) {
   
   if (missing(.labels)) {
     
-    .labels <- .data %>% map(attr, "label") %>% flatten_chr()
+    .labels <- .data |> map(attr, "label") |> flatten_chr()
   }
   assert_is_character(.labels)
   assert_has_names(.labels)
@@ -809,10 +811,10 @@ format_term_label <- function(coef_table, .data, .labels, add_ref = TRUE) {
   
   ## Main: ----
   
-  vars_cats_terms <- .data %>%
-    terms_from_data() %>%
-    mutate(is_cat = !is.na(cat)) %>%
-    group_by(var) %>%
+  vars_cats_terms <- .data |>
+    terms_from_data() |>
+    mutate(is_cat = !is.na(cat)) |>
+    group_by(var) |>
     mutate(
       ref = first(cat),
       Term = if_else(
@@ -824,7 +826,7 @@ format_term_label <- function(coef_table, .data, .labels, add_ref = TRUE) {
           condition = is_cat & n() > 2,
           true      = if_else(
             condition = ref == cat,
-            true      = .labels[var] %>% paste0(" (Ref. ", first(ref), ")"),
+            true      = .labels[var] |> paste0(" (Ref. ", first(ref), ")"),
             false     = cat
           ),
           false     = Term
@@ -832,28 +834,28 @@ format_term_label <- function(coef_table, .data, .labels, add_ref = TRUE) {
       indent = is_cat & n() > 2 & ref != cat
     )
   
-  result <- coef_table %>%
-    left_join(vars_cats_terms, by = "term") %>%
+  result <- coef_table |>
+    left_join(vars_cats_terms, by = "term") |>
   # FIXME: When `var` and `cat` already exist?
     mutate(
-      indent = Term %>% is.na() %>% if_else(FALSE, indent),
+      indent = Term |> is.na() |> if_else(FALSE, indent),
       Term   = Term %>% if_else(is.na(.), term, .)
     )
   
-  multiple_cat_titles <- vars_cats_terms %>%
-    filter(!indent, n() > 2) %>%
+  multiple_cat_titles <- vars_cats_terms |>
+    filter(!indent, n() > 2) |>
     semi_join(result, by = "var")
   
-  result <- result %>%
-    bind_rows(multiple_cat_titles) %>%
-    mutate(var = var %>% parse_factor()) %>%
-    arrange(var, indent) %>%
-    mutate(var = var %>% as.character())
+  result <- result |>
+    bind_rows(multiple_cat_titles) |>
+    mutate(var = var |> parse_factor()) |>
+    arrange(var, indent) |>
+    mutate(var = var |> as.character())
   
   ## TODO: Add reference category "per term"?
   if (add_ref) {
 
-    result <- result %>% mutate(
+    result <- result |> mutate(
       Term = if_else(
         is.na(cat),
         cat,
@@ -862,7 +864,7 @@ format_term_label <- function(coef_table, .data, .labels, add_ref = TRUE) {
     )
   }
 
-  result %>% select(-(var:ref))
+  result |> select(-(var:ref))
 }
 
 vars_cats_from_terms <- function(coef_table, .data) {
@@ -876,7 +878,7 @@ vars_cats_from_terms <- function(coef_table, .data) {
   
 
   ## Main: ----
-  coef_table %>% left_join(.data %>% terms_from_data(), by = "term")
+  coef_table |> left_join(.data |> terms_from_data(), by = "term")
 }
 
 terms_from_data <- function(.data) {
@@ -885,11 +887,11 @@ terms_from_data <- function(.data) {
   assert_is_data.frame(.data)
   
   ## Main: ----
-  .data %>% ## TODO: remove blanks??
-    map(levels) %>%
-    map(`%||%`, NA_character_) %>%
-    enframe("var", "cat") %>%
-    unnest(cat) %>%
+  .data |> ## TODO: remove blanks??
+    map(levels) |>
+    map(`%||%`, NA_character_) |>
+    enframe("var", "cat") |>
+    unnest(cat) |>
     unite(term, var, cat, sep = "", remove = FALSE, na.rm = TRUE)
 }
 
@@ -904,23 +906,23 @@ order_terms_with_data <- function(coef_table, .data) {
   
   
   ## Main: ----
-  terms <- .data %>% terms_from_data() %>% pull(term) %>%
-    intersect(coef_table %>% pull(term))
+  terms <- .data |> terms_from_data() |> pull(term) |>
+    intersect(coef_table |> pull(term))
   
-  coef_table %>%
-    mutate(term = term %>% factor(levels = c(INTERCEPT_TERM, terms))) %>%
+  coef_table |>
+    mutate(term = term |> factor(levels = c(INTERCEPT_TERM, terms))) |>
     arrange(term)
 }
 
 ### Time format functions: ----
 min_format <- function(x) { # TODO: Round up??
-  x %>% as_datetime() %>% label_time(glue("%M'"))()
+  x |> as_datetime() |> label_time(glue("%M'"))()
 }
 minsec_format <- function(x, digits = 0) {
-  x %>% as_datetime() %>% label_time(glue("%M' %OS{digits}\""))()
+  x |> as_datetime() |> label_time(glue("%M' %OS{digits}\""))()
 }
 sec_format    <- function(x, digits = 1) {
-  x %>% round(digits) %>% as_datetime() %>% label_time(glue("%OS{digits}\""))()
+  x |> round(digits) |> as_datetime() |> label_time(glue("%OS{digits}\""))()
 }
 
 ### Coefficient direction function: ----
@@ -948,7 +950,7 @@ coef_dir <- function(x,
   
   switch(
     form,
-    adj   = result %>% str_glue("d"),
+    adj   = result |> str_glue("d"),
     noun  = ,
     verb  = result,
     indet = str_glue(article, result, .sep = " "),
