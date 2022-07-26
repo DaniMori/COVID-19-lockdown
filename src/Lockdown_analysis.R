@@ -341,7 +341,7 @@ var_descriptors <- dataset_outcomes %>%
     suicidal_pre, suicidal_post
   ) %>%
   map_chr(~attr(., "label") %||% NA_character_) |>
-  c(depression_lt = "Depression (lifetime)")
+  c(depression_lifetime = "Depression (lifetime)")
 
 var_descriptors[
   c(
