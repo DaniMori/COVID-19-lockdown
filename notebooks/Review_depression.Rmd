@@ -340,11 +340,11 @@ De entre estas variables, las siguientes son las variables de interés:
   del subestudio COVID, llamada también `depression_12m`. Hace referencia al
   _diagnóstico de algún episodio depresivo en los últimos 12 meses_.
   Se calcula usando la variable anterior (`depression_lifetime`) **Y** dos ítems
-  que determinan si alguno de los episodios depresivos se ha producido
-  en los últimos 12 meses.
+  (`q4227` y `q4227a`) que determinan si alguno de los episodios depresivos
+  se ha producido en los últimos 12 meses.
 
 * `depression_symptoms12m`: Supuestamente es la misma que su equivalente en
-  la BDD   del subestudio COVID, llamada también `depression_symptoms12ms`.
+  la BDD del subestudio COVID, llamada también `depression_symptoms12ms`.
   Consiste en el
   _diagnóstico de algún episodio depresivo en los últimos 12 meses_,
   pero **utilizando los ítems de episodio depresivo en estos últimos 12 meses**,
@@ -353,7 +353,8 @@ De entre estas variables, las siguientes son las variables de interés:
 * `d_12m_comparable`:
   _Diagnóstico de algún episodio depresivo en los últimos 12 meses_
   calculada de manera similar a `depression_12m`
-  (diagnóstico "lifetime" + ítem de episodio en los últimos 12 meses), pero
+  (diagnóstico "lifetime" + ítems `q4227` y `q4227a`,
+  indicando episodio en los últimos 12 meses), pero
   **utilizando el algoritmo abreviado equivalente al de**
   **la entrevista telefónica Post-confinamiento**.
 
