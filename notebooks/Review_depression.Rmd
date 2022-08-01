@@ -1,12 +1,15 @@
 ---
 title: Propuesta de enmienda al artículo "Subestudio COVID"
 output:
+  word_document:
+    df_print: kable
+    toc: yes
   html_document:
-    df_print:     kable
-    toc:          yes
-    toc_float:    yes
+    df_print: kable
+    toc: yes
+    toc_float: yes
     code_folding: hide
-editor_options: 
+editor_options:
   chunk_output_type: console
 params:
   extra: no
