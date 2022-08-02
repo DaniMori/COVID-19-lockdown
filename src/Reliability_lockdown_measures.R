@@ -33,19 +33,13 @@ DB_PATH_MAIN <- file.path(
 )
 DB_PRE_DIR <- file.path(
   DB_PATH_MAIN,
-  "Ola_3/Cohorte_2019/Submuestra_1_preconfinamiento"
+  "Ola_3/Cohorte_2019"
 )
 DB_POST_DIR <- file.path(DB_PATH_MAIN, "Subestudio_COVID")
 
 # Source datasets:
-DB_PRE_PATH <- file.path(
-  DB_PRE_DIR,
-  "Edad con Salud ola 3_cohorte 2019_base completa_Stata14.dta"
-)
-DB_POST_PATH <- file.path(
-  DB_POST_DIR,
-  "Edad_con_salud_Fichero_Completo.dta"
-)
+DB_PRE_PATH  <- file.path(DB_PRE_DIR, "rawdata_c2019w1.dta")
+DB_POST_PATH <- file.path(DB_POST_DIR, "Edad_con_salud_Fichero_Completo.dta")
 
 
 # Variable definitions
@@ -106,7 +100,7 @@ ITEMS_WITH_MISSING_POST <- c(SOCIAL_SUPPORT_POST_ITEMS, DISABILITY_POST_ITEMS)
 
 ## ----load-data----
 
-dataset_pre  <- DB_PRE_PATH  %>% read_dta()
+dataset_pre  <- DB_PRE_PATH  %>% read_dta() |> filter(subsample_pre == 1)
 dataset_post <- DB_POST_PATH %>% read_dta()
 
 
