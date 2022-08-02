@@ -134,6 +134,8 @@ dataset_post <- dataset_post %>% mutate(
   # Missing values:
   across(all_of(ITEMS_WITH_MISSING_POST), na_if, 8),
   across(all_of(ITEMS_WITH_MISSING_POST), na_if, 9),
+  across(all_of(ITEMS_WITH_MISSING_POST), na_if, 888),
+  across(all_of(ITEMS_WITH_MISSING_POST), na_if, 999),
 
   # Recode response categories in disability:
   across(all_of(DISABILITY_RECODE_POST), as.numeric),
