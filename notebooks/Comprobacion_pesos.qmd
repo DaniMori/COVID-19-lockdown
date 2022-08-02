@@ -1,0 +1,496 @@
+---
+title: "Comprobación pesos"
+author: "Daniel Morillo"
+format:
+  html:
+    code-fold: true
+    code-tools: true
+    toc: true
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup}
+#| include: false
+
+library(tidyverse)
+library(haven)
+library(knitr)
+library(RStata)
+
+
+# File system constants:
+
+BASE_DIR         <- "~/../UAM"
+DOC_PATH_MASTER  <- file.path(
+  BASE_DIR,
+  "marta.miret@uam.es - Documentacion Edad con Salud"
+)
+DB_PATH          <- file.path(
+  DOC_PATH_MASTER,
+  "Edad con salud - Subestudio COVID/BBDD_con_outcomes"
+)
+OUTCOMES_DB_FILE <- file.path(DB_PATH, "Outcomes_collapsed.dta")
+
+
+# Output configuration:
+
+options(digits = 7)
+options(RStata.StataVersion = 15)
+options(RStata.StataPath = '"C:/Program Files (x86)/Stata15/StataSE-64.exe"')
+```
+
+# Introducción
+
+Se comprueba el uso de los pesos en el subestudio COVID (artículo "Changes in
+depression and suicidal ideation under severe lockdown restrictions during the
+first wave of the COVID-19 pandemic in Spain: A longitudinal study in the
+general population").
+Una versión preliminar de los pesos muestrales fue generada
+con la llamada "submuestra preconfinamiento". Esta versión es la que se utilizó
+para el artículo. En este documento se comprueba si estos pesos están aplicados
+correctamente para el cálculo de las prevalencias de depresión.
+
+# Carga y formato de datos
+
+Se realiza la carga y formato de datos equivalente a la utilizada en el script
+del artículo.
+
+```{r prepare-data}
+
+# Load dataset:
+dataset <- read_dta(OUTCOMES_DB_FILE)
+
+# Filter cases:
+
+dataset_pre  <- dataset |> filter(proxy == 2)
+dataset_post <- dataset |> filter(ESTADO_ENTREVISTA == 1)
+
+
+# Select variables:
+depression_pre  <- dataset_pre |>
+  select(number_id, depression_12m, weights) |>
+  mutate(
+    depression = depression_12m |> factor(levels = 0:1, labels = c("No", "Yes"))
+  ) |>
+  select(-depression_12m)
+
+depression_post <- dataset_post |>
+  select(number_id, depression = depression_post, weights) |>
+  as_factor()
+
+# Collapse datasets:
+depression_tidy <- list(Pre = depression_pre, Post = depression_post) |>
+  bind_rows(.id = "time") |>
+  drop_na(depression) |>  # Just in case
+  group_by(time) |>
+  mutate(
+    time       = time |> factor(levels = c("Pre", "Post")), # Proper order
+    wt_norm    = weights / mean(weights), # Normalized weights
+    depression = depression == "Yes" # Better for computing statistics
+  )
+```
+
+# Cálculo de las prevalencias
+
+Se hace el cálculo de las prevalencias de depresión, basado en el código
+utilizado en la función `estimate_prevalence()`, llamada desde el script del
+artículo:
+
+```{r compute-prevalences}
+#| message: false
+prevalence <- depression_tidy |>
+  summarize(
+    prev = depression |> weighted.mean(w = wt_norm),
+    n    = n(),
+    sd   = sqrt(sum((depression - prev)^2 * wt_norm) / (n - 1)),
+    se   = sqrt(prev * (1 - prev) * sum(wt_norm^2) / sum(wt_norm)^2)
+  )
+
+prevalence |> kable()
+```
+
+El cálculo de la desviación estándar se hace en base a la misma fórmula aplicada
+por Stata para el cálculo de los descriptivos con pesos analíticos:
+[https://www.stata.com/support/faqs/statistics/weights-and-summary-statistics/][1]
+(epígrafe "_Formula for s^2^ used by summarize with `aweights`_").
+No obstante, para obtener el valor correcto, es necesario aplicar correctamente
+los _pesos normalizados_
+(de tal manera que la suma de todos ellos sea igual al nº de casos).
+
+[1]: https://www.stata.com/support/faqs/statistics/weights-and-summary-statistics/
+
+La fórmula del error estándar es la que está implementada (por mí) en la función
+`estimate_prevalence()`, y desconozco de dónde la saqué.
+
+# Comprobación con Stata
+
+## Media (prevalencia) y desviación estándar
+
+Primero comprobamos que se obtiene la misma media y desviación típica,
+usando los pesos calculados:
+
+```{r compute-mean-sd-stata}
+depression_prevs <- depression_tidy |> pivot_wider(
+    id_cols     = number_id:weights,
+    names_from  = time,
+    values_from = depression
+)
+
+command_descriptives <- "summarize Pre Post [aweight=weights]"
+stata(command_descriptives,  depression_prevs)
+```
+
+El resultado es el mismo con ambos procedimientos (R y Stata).
+El valor de la media y desviación estándar es el mismo en ambos casos.
+
+El cálculo también se puede hacer mediante:
+
+```{r compute-prevalences-stata}
+command_prevalences <- "svyset number_id [pweight=weights]
+svy: mean Pre Post
+estat sd"
+stata(command_prevalences, depression_prevs)
+```
+
+Los valores tanto de las medias como de las desviaciones estándar cambian,
+presumiblemente porque Stata debe utilizar sólo los casos comunes cuando
+se llama a este procedimiento con más de una variable (i.e. listwise deletion).
+Probamos con R usando sólo los casos comunes
+(teniendo en cuenta que hace falta renormalizar los pesos):
+
+
+```{r compute-mean-sd-non-missing}
+prevalence_common_cases <- depression_prevs |>
+  drop_na() |>
+  pivot_longer(Pre:Post, names_to = "time", values_to = "depression") |>
+  mutate(time = time |> factor(c("Pre", "Post"))) |>
+  group_by(time) |>
+  mutate(wt_norm = weights / mean(weights)) |>
+  summarize(
+    prev = depression |> weighted.mean(w = wt_norm),
+    sd   = sqrt(sum(((depression - prev)^2 * wt_norm)) / (n() - 1))
+  )
+
+prevalence_common_cases |> kable()
+```
+
+Efectivamente da los mismos resultado que Stata.
+Si probamos en Stata solamente con la variable "Pre" o "Post" esperamos el mismo
+resultado que se obtuvo con R originalmente:
+
+```{r}
+command_prevalences <- "svyset number_id [pweight=weights]
+svy: mean Pre
+estat sd
+svy: mean Post
+estat sd"
+stata(command_prevalences, depression_prevs)
+```
+
+Se comprueba que efectivamente los resultados con Stata son los mismos.
+
+## Error de estimación
+
+El error de estimación de la media se obtiene mediante el procedimiento
+`svy: mean`.
+Se puede ver anteriormente que el resultado del error de estimación de la media
+es diferente, por lo que es posible que la fómula de la función
+`estimate_prevalences()` esté mal.
+
+En la [página de ayuda de Stata][1] se indica cómo hacer el cálculo del
+error de estimación de la media.
+Para hacerlo es necesario hacer el supuesto de que el valor de $\mu$,
+en este caso, la prevalencia, es la misma para todos los casos
+(en nuestro caso no supone un problema).
+
+Las fórmulas en el epígrafe "_`pweights` and the estimate of sigma_"
+lo que indican finalmente es que se puede obtener el valor correcto del error
+de estimación de la media poblacional como $\tfrac{u^2 n}{\sum_i w_i}$.
+
+Por lo tanto:
+
+```{r}
+mean_se <- prevalence |> mutate(se = sd / sqrt(n))
+
+mean_se |> kable()
+```
+
+El resultado obtenido no es el mismo que con Stata,
+pero tampoco que con la fórmula original,
+lo cual parece indicar que puede haber un error en esa fórmula.
+
+### Comprobación "sin pesos"
+
+Vamos a comprobar qué ocurre si hacemos que todos los pesos sean iguales a 1,
+para ver si en Stata se obtiene lo mismo que
+si tuviéramos pesos en el diseño muestral.
+
+Resultado con R:
+
+```{r}
+mean_se <- depression_tidy |> summarize(
+    prev = depression |> mean(),
+    n    = n(),
+    sd   = (sum((depression - prev)^2) / (n - 1)) |> sqrt(),
+    se   = sd / sqrt(n)
+  )
+
+mean_se |> kable()
+```
+
+Resultado con Stata:
+
+```{r}
+command_prevalences <- "gen fw=1
+svyset number_id [pweight=fw]
+svy: mean Pre
+svy: mean Post"
+stata(command_prevalences, depression_prevs)
+```
+
+El resultado que se obtiene es exactamente el mismo.
+
+### Comprobación con el cálculo exacto de la desviación estándar.
+
+En la fórmula originalmente utilizada hay dos componentes:
+Uno es la desviación típica, obtenida como la raíz cuadrada
+de $\mu * (1 - \mu)$, y otro término que depende de los pesos.
+Este término, cuando todos los pesos son iguales a 1,
+se reduce (como habría de ser) a $\tfrac{1}{\sqrt{n}}$.
+El primer término sin embargo es la aproximación normal, y de hecho se puede
+comprobar que no da el mismo valor exacto que la desviación típica.
+Por lo tanto, pruebo el segundo componente aplicado al cálculo correcto de la
+desviación típica:
+
+```{r}
+prevalence <- depression_tidy |>
+  summarize(
+    prev = depression |> weighted.mean(w = wt_norm),
+    n    = n(),
+    sd   = sqrt(sum((depression - prev)^2 * wt_norm) / (n - 1)),
+    se   = sd * sqrt(sum(wt_norm^2) / sum(wt_norm)^2)
+  )
+
+prevalence |> kable()
+```
+
+El resultado sigue sin ser igual al que da Stata.
+Esto me hace pensar que puede haber algo en la especificación
+del diseño muestral que sea lo que esté afectando
+
+### Comprobación con el paquete `survey`
+
+La opción que queda es hacer las comprobaciones especificando el diseño muestral
+igual que en Stata, utilizando para ello el paquete `survey`.
+
+```{r}
+#| message: false
+library(survey)
+
+depr_design <- svydesign(
+  id      = ~number_id,
+  weights = ~weights,
+  data    = depression_prevs
+)
+
+pre_mean  <- svymean(~Pre,  depr_design, na.rm = TRUE)
+post_mean <- svymean(~Post, depr_design, na.rm = TRUE)
+
+bind_rows(
+  Pre  = pre_mean  |> as_tibble() |> slice(2),
+  Post = post_mean |> as_tibble() |> slice(2),
+  .id  = "Time"
+) |>
+  kable()
+```
+
+Estos resultados son casi prácticamente iguales que los obtenidos por Stata,
+pero hay una ligera variación en la medida "Post" a partir del 6º decimal.
+Suponiendo que puede deberse a la escala de los pesos, voy a probar a hacer
+el mismo cálculo pero con los pesos normalizados para cada medida.
+
+```{r}
+pre_ds <- svydesign(
+  id      = ~number_id,
+  weights = ~wt_norm,
+  data    = depression_tidy |> filter(time == "Pre")
+)
+post_ds <- svydesign(
+  id      = ~number_id,
+  weights = ~wt_norm,
+  data    = depression_tidy |> filter(time == "Post")
+)
+
+pre_mean  <- svymean(~depression, pre_ds,  na.rm = TRUE)
+post_mean <- svymean(~depression, post_ds, na.rm = TRUE)
+
+bind_rows(
+  Pre  = pre_mean  |> as_tibble() |> slice(2),
+  Post = post_mean |> as_tibble() |> slice(2),
+  .id  = "Time"
+) |>
+  kable()
+```
+
+Ahora los resultados sí son exactamente iguales a los de Stata.
+
+Igualmente, si queremos hacer las prevalencias para los casos completos,
+podemos renormalizar los pesos:
+
+```{r}
+depr_design <- svydesign(
+  id      = ~number_id,
+  weights = ~weights,
+  data    = depression_prevs |>
+    drop_na() |>
+    mutate(weights = weights / mean(weights))
+)
+
+depr_means <- svymean(~Pre+Post, depr_design, na.rm = TRUE)
+
+depr_means |>
+  as.data.frame() |>
+  rownames_to_column(var = "Time") |>
+  filter(Time |> str_detect("TRUE")) |>
+  mutate(Time = Time |> str_remove("TRUE")) |>
+  kable()
+```
+
+El resultado es exactamente el mismo que el que da Stata.
+
+Por lo tanto, solamente haría falta comprobar cómo hace `survey::svymean()`
+el cálculo del error de estimación.
+Viendo internamente la función `survey::svymean()` se puede ver que utiliza
+`survey::svyrecvar()` para el cálculo de las varianzas.
+Yendo al funcionamiento interno de la función (la cual nos lleva al final a
+`survey:::onestrat()`), vemos que el cálculo que se hace es:
+
+```{r}
+depression_tidy_se <- depression_tidy |>
+  full_join(prevalence |> select(time:prev), by = "time") |>
+  mutate(
+    wdiff = (depression - prev) * wt_norm / sum(wt_norm), # =n() si normalizados
+    scale = n() / (n() - 1), # Sin aplicar fpc, ver survey:::onestrat(), línea 5
+    prod  = wdiff * sqrt(scale)
+  )
+
+depression_tidy_se |>
+  summarize(var = sum(prod^2), se = sqrt(var)) |>
+  kable()
+```
+
+Simplificando:
+
+```{r}
+depr_se <- depression_tidy |>
+  full_join(prevalence |> select(time:prev), by = "time") |>
+  summarize(
+    prev = prev |> unique(),
+    var  = sum((depression - prev)^2 * wt_norm^2) / (n() * (n() - 1)),
+    se   = sqrt(var)
+  )
+
+depr_se |> kable()
+```
+
+O bien de forma equivalentes, definiendo los pesos como normalizados a 1
+en lugar de al tamaño muestral:
+
+```{r}
+depression_tidy |>
+  full_join(prevalence |> select(time:prev), by = "time") |>
+  mutate(wt_norm = wt_norm / n()) |>
+  summarize(
+    prev = prev |> unique(),
+    var  = sum((depression - prev)^2 * wt_norm^2) * n() / (n() - 1),
+    se   = sqrt(var)
+  ) |>
+  kable()
+```
+
+Da exactamente el mismo resultado que Stata.
+En conclusión, se puede usar tanto la fórmula obtenida arriba como
+`survey::svymean()`, pero siempre teniendo en cuenta que es necesario obtener
+los pesos normalizados para cada medida (Pre/Post) y generar el dataset que
+le corresponde, sin valores perdidos.
+
+## Intervalos de confianza
+
+El paquete `survey` permite calcularlos con el método de `stats::confint()`
+para la clase `survey::svystat`
+Hacemos la prueba con las medias:
+
+```{r}
+bind_rows(
+  Pre  = pre_mean  |> confint() |> as_tibble() |> slice(2),
+  Post = post_mean |> confint() |> as_tibble() |> slice(2),
+  .id  = "Time"
+) |>
+  kable()
+```
+
+Los resultados no son iguales que en Stata.
+Hacemos la prueba con los errores obtenidos con la fórmula y
+asumiendo normalidad:
+
+```{r}
+ci_width <- qnorm(.975)
+
+depr_se |> transmute(
+  time,
+  ci_inf = prev - ci_width * se,
+  ci_sup = prev + ci_width * se
+) |>
+  kable()
+```
+
+Da el mismo resultado que el método de `stats::confint()`.
+Voy a probar, en lugar de con la distribución normal,
+con la distribución T de Student.
+
+```{r}
+prevalence <- prevalence |>
+  select(-se) |>
+  full_join(depr_se |> select(-prev), by = "time")
+
+prevalence |>
+  mutate(
+    ci_w   = qt(.975, n - 1),
+    ci_inf = prev - ci_w * se,
+    ci_sup = prev + ci_w * se
+  ) |>
+  select(-ci_w) |>
+  kable()
+```
+
+Da exactamente el mismo resultado que Stata.
+
+# Cálculo completo
+
+El siguiente código hace el cálculo al completo de las prevalencias,
+con las desviaciones estándar, el error de estimación,
+y los intervalos de confianza, replicando exactamente los resultados
+dados por Stata:
+
+```{r}
+prevalence <- depression_tidy |>
+  mutate(wt_norm = weights / sum(weights)) |>
+  summarize(
+    prev   = depression |> weighted.mean(w = wt_norm),
+    n      = n(),
+    sd     = sqrt(sum((depression - prev)^2 * wt_norm)   * n / (n - 1)),
+    se     = sqrt(sum((depression - prev)^2 * wt_norm^2) * n / (n - 1)),
+    ci_w   = qt(.975, n - 1),
+    ci_inf = prev - ci_w * se,
+    ci_sup = prev + ci_w * se
+  ) |>
+  select(-ci_w)
+
+prevalence |> kable()
+```
+
+Aquí se puede ver la relación entre la desviación estándar y el error de
+estimación.
+Con los pesos normalizados a 1 (en lugar de al tamaño muestral) se ve que
+la relación está en los pesos (lineales para la s.d., cuadráticos para el s.e.).
