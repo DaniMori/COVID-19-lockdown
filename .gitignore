@@ -40,9 +40,10 @@ vignettes/*.pdf
 
 # Other directories
 doc/
+*_files/
 
 # Output files and datasets
 *.html
-*.docs
+*.docx
 *.sav
 *.dta
