@@ -51,6 +51,10 @@ options(RStata.StataVersion = 15)
 options(RStata.StataPath = '"C:/Program Files (x86)/Stata15/StataSE-64.exe"')
 ```
 
+```{r delete-this-chunk, eval=interactive()}
+source("src/Lockdown_analysis.R")
+```
+
 # Resumen
 
 ```{r read-chunks, cache=FALSE}
@@ -105,16 +109,10 @@ read_chunk(SRC_FILE)
 ```{r depression-prevalence-estimates}
 ```
 
-```{r depression-association-population}
-```
-
 ```{r suicidal-dataset}
 ```
 
 ```{r suicidal-prevalence-estimates}
-```
-
-```{r suicidal-association-population}
 ```
 
 ```{r prevalence-estimates-collapsed}
@@ -187,15 +185,26 @@ de "Depresión en los últimos 12 meses" (12-month depression).
 Este error se debe, en parte, a no haberse generado una variable
 "12-month depression" con el algoritmo abreviado equivalente al usado en
 la medida Post.
+Además, a raíz de detectar este error se han detectado también errores en los
+algoritmos que computan las variables de depresión, dando lugar a que haya
+cambios en el diagnóstico de depresión en sus diferentes versiones que afecta a
+todos los resultados del artículo.
 
-Al utilizar la variable "12-month depression" se observan prevalencias de
-depresión mucho menores en la medida Pre-confinamiento.
+Al implementar los cambios se observan prevalencias de
+depresión mucho menores en la medida Pre-confinamiento, y algo mayores en la
+medida Post-confinamiento.
 Esto da lugar a que los cambios en prevalencia aumenten significativamente,
 siendo esto más relevante si se considera que se está comparando un período de
 12 meses en la medida Pre con uno de 30 días en la medida Post.
+Además, los modelos de regresión logística para modelar la incidencia de
+depresión e ideación suicida cambian sustancialmente.
+La única covariable asociada a la incidencia de depresión es la soledad durante
+el confinamiento. A la incidencia de ideación suicida están asociadas el apoyo
+social y la discapacidad (durante el confinamiento).
 
 Se recomienda enviar una enmienda a Epidemiology & Psychiatric Sciences,
-explicando el error y con los datos corregidos.
+explicando los errores detectados, con los datos corregidos.
+
 
 # Introducción
 
@@ -230,7 +239,7 @@ La primera de ellas corresponde a "Depresión a lo largo de la vida"
 "episodio depresivo en los últimos 12 meses" (12-month depression)
 
 Las dos siguientes son el equivalente, también en la medida Pre, pero utilizando
-el mismo algoritmo de la entrevista telefónica (Post-confinamiento).
+el mismo algoritmo de la entrevista telefónica Post-confinamiento.
 A estas dos variables se les ha añadido el sufijo `_pre` al obtener
 la BDD colapsada con todos los outcomes.
 Es decir, `depression_pre` corresponde, de acuerdo al
@@ -304,18 +313,20 @@ suicidal_coefficients_table
 
 ## Variables de depresión adicionales
 
+### Línea base (medida Pre-confinamiento)
+
 Tras completar las entrevistas correspondientes a la línea base de Cohorte 2019,
 se ha generado un nuevo dataset con variables de depresion,
 con el algoritmo revisado y los diagnósticos generados para todos los casos
-de la muestra.
+de la muestra en línea base.
 Se listan a continuación las variables que contiene este dataset:
 
 ```{r echo-code}
 opts_chunk$set(echo = TRUE)
 ```
 
-```{r depression-new-vars}
-depression_new_dataset <- file.path(
+```{r depression-pre-new-vars}
+depression_pre_new_dataset <- file.path(
   DOC_PATH_MASTER,
   "Edad con salud - Ola 3/Outcomes/Cohorte 2019/Outcome datasets",
   "Outcome_depression_ICD10.dta"
@@ -323,10 +334,10 @@ depression_new_dataset <- file.path(
   read_stata() |>
   filter(subsample_pre == 1)
 
-depr_new_vars <- depression_new_dataset |>
+depr_pre_new_vars <- depression_pre_new_dataset |>
   select(ID_ECS, starts_with(c("depression", "d_")))
 
-depr_new_vars |>
+depr_pre_new_vars |>
   select(-ID_ECS) |>
   map(attr, "label") |>
   map_chr(`%||%`, NA_character_) |>
@@ -390,6 +401,35 @@ Sin embargo, había un error en un filtro del cuestionario que hizo que muchos
 participantes se saltaran esta sección.
 Por lo tanto, es necesario utilizar la variable `d_12m_comparable` en su lugar.
 
+### Subestudio COVID (medida Post-confinamiento)
+
+El dataset de las variables de depresión de la entrevista Post-confinamiento
+se ha actualizado también con el algoritmo revisado.
+Las variables que contiene este dataset son:
+
+```{r depression-post-new-vars}
+depression_post_new_dataset <- file.path(
+  DOC_PATH_MASTER,
+  "Edad con salud - Subestudio COVID/Outcomes/Outcome datasets",
+  "Outcome_depression_ICD10.dta"
+) |>
+  read_stata()
+
+depr_post_new_vars <- depression_post_new_dataset |> select(-ESTADO_ENTREVISTA)
+
+depr_post_new_vars |>
+  select(-ID_ECS) |>
+  map(attr, "label") |>
+  map_chr(`%||%`, NA_character_) |>
+  enframe("Variable", "Label")
+```
+
+La variable de interés en este caso es `depression_30d`; consiste en
+el _diagnóstico de algún episodio depresivo en los últimos 30 días_.
+Esta variable utiliza el algoritmo abreviado de la entrevista telefónica
+post-confinamiento, y es la variable que se utiliza como criterio para crear
+la variable `d_12m_comparable` en la medida Pre-confinamiento.
+
 ### Comprobación de las variables de depresión adicionales
 
 Antes de utilizar estas nuevas variables de depresión,
@@ -409,59 +449,96 @@ db_ids <- file.path(
   read_dta() |>
   select(ID_ECS, number_id, q0002_hhid)
 
-depr_new_vars <- db_ids |>
-  right_join(depr_new_vars, by = "ID_ECS") |>
+depr_pre_new_vars <- db_ids |>
+  right_join(depr_pre_new_vars, by = "ID_ECS") |>
   select(-ID_ECS) |>
   semi_join(dataset_outcomes, by = c("number_id", "q0002_hhid"))
 
-n_depr_new_vars <- depr_new_vars |> nrow()
+depr_post_new_vars <- db_ids |>
+  right_join(depr_post_new_vars, by = "ID_ECS") |>
+  select(-ID_ECS) |>
+  semi_join(dataset_outcomes, by = c("number_id", "q0002_hhid"))
+
+n_depr_pre_new_vars  <- depr_pre_new_vars  |> nrow()
+n_depr_post_new_vars <- depr_post_new_vars |> nrow() # También igual a 1101
 ```
 
-El dataset de nuevas variables de depresión tiene `r n_depr_new_vars` casos en
-común con la BDD del artículo, en lugar de los `r n_final` que hay en la BDD
-del artículo.
+Los datasets de nuevas variables de depresión tienen `r n_depr_pre_new_vars`
+casos en común con la BDD del artículo, en lugar de los `r n_final` que hay en
+la BDD del artículo.
 Esto se debe (probablemente) a casos que han sido descartados de versiones
 posteriores en la BDD consolidada de línea base.
 
 ### Recálculo de las nuevas variables de depresión en el dataset original
 
 Para poder tener todos los casos de estas variables, es necesario ejecutar la
-sitaxis de las variables en la BDD maestra de línea base original,
+sitaxis de las variables en las BDD maestras originales,
 con la cual se creó la BDD del artículo.
-Para ello, se ha creado una versión del documento Rmarkdown de
-descripción de esas variables en `notebooks/Description_depression_ICD10.Rmd`
-y se han cambiado: el dataset de origen, ruta de salida del dataset calculado,
-y las variables a guardar (hay que quitar `subsample_pre` e `interview_pre`).
+Para ello, se han creado versiones de los documentos Rmarkdown de
+descripción de esas variables, en
+`notebooks/Description_depression_ICD10_pre.Rmd` y
+`notebooks/Description_depression_ICD10_post.Rmd`, para los datasets de
+línea base (Pre-) y el subestudio COVID (Post-confinamiento), respectivamente.
+En estos documentos se han cambiado: el dataset de origen,
+la ruta de salida del dataset calculado,
+el nombre de archivo del dataset calculado (añadiendo el sufio `_pre` o `_post`,
+según corresponda),
+y las variables a guardar (hay que quitar `subsample_pre` e `interview_pre` del
+dataset de línea base, y quitar `ESTADO_ENTREVISTA` del de Subestudio COVID y
+añadir `IDENTIFICA1` e `IDENTIFICA2`).
 
 ```{r compute-new-depr-vars, cache=TRUE, results='hide'}
-DESCRIPTION_FILEPATH <- "notebooks/Description_depression_ICD10"
+DESCRIPTION_PRE_FILEPATH  <- "notebooks/Description_depression_ICD10_pre"
+DESCRIPTION_POST_FILEPATH <- "notebooks/Description_depression_ICD10_post"
 
 Rscript_call(
   render,
-  list(input = DESCRIPTION_FILEPATH |> paste0(".Rmd"))
+  list(input = DESCRIPTION_PRE_FILEPATH |> paste0(".Rmd"))
+)
+Rscript_call(
+  render,
+  list(input = DESCRIPTION_POST_FILEPATH |> paste0(".Rmd"))
 )
 
-# docx output is not necessary so it's deleted:
-file.remove(DESCRIPTION_FILEPATH |> paste0(".docx"))
+# docx outputs are not necessary so they are deleted:
+file.remove(
+  c(DESCRIPTION_PRE_FILEPATH, DESCRIPTION_POST_FILEPATH) |> paste0(".docx")
+)
 
-depression_new_dataset <- file.path("dat", "Outcome_depression_ICD10.dta") |>
+depression_pre_new_dataset <- file.path(
+  "dat",
+  "Outcome_depression_ICD10_pre.dta"
+) |>
   read_stata()
-
-depr_new_vars_all_cases <- depression_new_dataset |>
+depr_pre_new_vars_all_cases <- depression_pre_new_dataset |>
   select(
     q0002_hhid, number_id,
     ends_with(c("lifetime", "12m", "comparable")),
     -matches("severity")
   )
-
-depr_new_vars <- depr_new_vars_all_cases |>
+depr_pre_new_vars <- depr_pre_new_vars_all_cases |>
   semi_join(dataset_outcomes, by = c("number_id", "q0002_hhid"))
 
-n_depr_new_vars <- depr_new_vars |> nrow()
+depression_post_new_dataset <- file.path(
+  "dat",
+  "Outcome_depression_ICD10_post.dta"
+) |>
+  read_stata()
+depr_post_new_vars <- depression_post_new_dataset |>
+  rename(number_id = IDENTIFICA1, q0002_hhid = IDENTIFICA2) |>
+  select(-ID_ECS) |>
+  semi_join(
+    dataset_outcomes,
+    by = c("number_id", "q0002_hhid")
+  )
+
+n_depr_pre_new_vars  <- depr_pre_new_vars  |> nrow()
+n_depr_post_new_vars <- depr_post_new_vars |> nrow() # También igual a 1103
 ```
 
-Este dataset sí contiene los `r n_depr_new_vars` casos de la BDD del artículo,
-y por lo tanto se puede utilizar junto con los resultados anteriores.
+Estos datasets sí contienen los `r n_depr_pre_new_vars` casos de la BDD
+del artículo,
+y por lo tanto se pueden utilizar junto con los resultados anteriores.
 
 ### Comprobación de la correspondiencia en los cálculos
 
@@ -471,20 +548,30 @@ valores, o si la actualización de los algoritmos ha dado lugar a cambios en los
 diagnósticos obtenidos.
 
 ```{r check-depr-vars-correspondence}
-all_depr_vars <- depr_vars |> full_join(
-  depr_new_vars,
-  by = c("q0002_hhid", "number_id"),
-  suffix = c("_old", "_new")
-)
+all_depr_vars <- depr_vars |>
+  full_join(
+    depr_pre_new_vars,
+    by = c("q0002_hhid", "number_id"),
+    suffix = c("_old", "_new")
+  ) |>
+  full_join(
+    depr_post_new_vars,
+    by = c("q0002_hhid", "number_id")
+  )
 
-all_depr_vars |> count(across(matches("depression_lifetime")))
-all_depr_vars |> count(across(matches("depression_12m")))
-all_depr_vars |> count(across(matches("depression_symptoms12m")))
+all_depr_vars |> tabyl(depression_lifetime_old,    depression_lifetime_new)
+all_depr_vars |> tabyl(depression_12m_old,         depression_12m_new)
+all_depr_vars |> tabyl(depression_symptoms12m_old, depression_symptoms12m_new)
+
+all_depr_vars |> tabyl(depression_post, depression_30d)
 ```
 
 Podemos ver que, tras la revisión, `depression_lifetime` y `depression_12m`
 tienen 1 y 5 casos positivos más, respectivamente,
 en comparación con la versión original del algoritmo.
+En cuanto a `depression_30d` (Depresión Post- a corto plazo) se observa una
+discrepancia importante de casos (6 casos pasan a estar no diagnosticados,
+y 21 pasan de no estarlo a estarlo).
 Aunque originalmente utilizábamos la variable de "lifetime depression" calculada
 con el algoritmo equivalente al de la entrevista Post
 (aquí llamada `depression_pre`),
@@ -492,10 +579,12 @@ ya hemos dicho que esa variable no tiene sentido.
 En su lugar, cuando sea necesario utilizar una variable de "lifetime depression"
 utilizaremos la versión actualizada de `depression_lifetime`.
 
+### Incorporación de las variables de depresión actualizadas
+
 Para asegurarnos de tener las variables correctas bien identificadas y trabajar
 con ellas, eliminamos el resto de variables de depresión dejando solamente las
 que se van a utilizar, y renombrando `d_12m_comparable` como
-`depression_pre`.
+`depression_pre` y `depression_30d` como `depression_post`.
 
 ```{r unecho-code}
 opts_chunk$set(echo = FALSE)
@@ -504,21 +593,24 @@ opts_chunk$set(echo = FALSE)
 ```{r load-data}
 ```
 
-```{r new-depr-vars-corrected, echo=TRUE}
+```{r depr-pre-new-vars-corrected, echo=TRUE}
 dataset_outcomes <- dataset_outcomes |>
   select(
     everything(),
     -matches("depression"),
-    depression_post,
     matches("severity") # "Depression severity" raise error if dropped
   ) |>
   full_join(
-    depr_new_vars_all_cases |> select(
+    depr_pre_new_vars_all_cases |> select(
       q0002_hhid, number_id,
       depression_lifetime, depression_pre = d_12m_comparable
     ),
     by = c("number_id", "q0002_hhid")
-  )
+  ) |>
+  full_join(
+    depr_post_new_vars |>
+      select(q0002_hhid, number_id, depression_post = depression_30d),
+    by = c("number_id", "q0002_hhid"))
 ```
 
 ```{r subset-cases}
@@ -584,6 +676,9 @@ dataset_outcomes <- dataset_outcomes |>
       as_factor() |>
       set_attr("label", "Lifetime depression"),
     depression_pre = depression_pre |>
+      as_factor() |>
+      set_attr("label", "Depression"),
+    depression_post = depression_post |>
       as_factor() |>
       set_attr("label", "Depression")
   )
@@ -819,6 +914,12 @@ al contrario de lo expresado en el artículo.
 ```{r depression-prevalence-estimates}
 ```
 
+```{r suicidal-dataset}
+```
+
+```{r suicidal-prevalence-estimates}
+```
+
 ```{r prevalence-estimates-collapsed}
 ```
 
@@ -838,6 +939,7 @@ prevalence_table_output
 
 Las **tasas de prevalencia en la medida Pre** estimadas en la población
 son **mucho menores a las reportadas** en el artículo.
+**En la medida Post las tasas aumentan en torno a un 2-3%**.
 En consecuencia, **todas las tasas de prevalencia**, tanto en la población total
 como segmentada por edad y sexo, **aumentan significativamente** de la medida
 Pre a la Post.
@@ -846,7 +948,61 @@ En el artículo se informa de un **descenso significativo en**
 cuando en realidad hay un aumento significativo,
 mientras que en las otras tasas se reportan cambios no significativos.
 
-## Modelo de regresión logística
+## Modelos de regresión logística
+
+### Modelo de ideación suicida
+
+Al haberse actualizado la varaible "Depression lifetime" tras la corrección de
+los errores en el algoritmo, los cambios afectan también al modelo de
+ideación suicida. Por lo tanto, con los cambios realizados anteriormente,
+volvemos a ejecutar el código del modelo de ideación suicida.
+
+Corremos el modelo de ideación suicida antes que el de depresión, ya que
+para el modelo de depresión se necesitan unos cambios (cambiar el nombre de
+la variable `depression_lifetime` por `depression_pre`, que hasta ahora es
+el nombre de la variable `depression_12m_comparable`, con objeto de poder
+reutilizar el código).
+
+```{r suicidal-selection-no-pre}
+```
+
+```{r univariate-tests-suicidal}
+```
+
+```{r predictor-selection-suicidal}
+```
+
+```{r drop-complete-separation-terms-suicidal}
+```
+
+```{r ordinal-linearity-tests-suicidal}
+```
+
+```{r stepwise-glm-suicidal, message=FALSE, results='hide'}
+```
+
+```{r suicidal-coefficients}
+```
+
+```{r suicidal-coefficients-table-corrected, tab.id="suicidal-coefficients-table-corrected", tab.cap=CAPTION_SUICIDAL_FIT_NEW_TERMS, cache=FALSE}
+suicidal_coefficients_table
+```
+
+Los predictores seleccionados por
+el procedimiento "backward-step selection" son prácticamente los mismos,
+exceptuando "Loneliness (Pre)" que originalmente no estaba.
+Las variable "Depression (Pre)" y "Resilience (Post)", que eran significativas,
+dejan de serlo, mientras que "Social Support (Post)" sigue siendo significativa.
+A su vez, "Disability (Post)" y "Age" resultan ahora significativas,
+aunque esta última deja de serlo tras aplicar la corrección de Bonferroni.
+
+Los resultados por lo tanto cambian sustancialmente, dado que solo una de las
+tres variables significativas en principio se mantiene como tal, la soledad
+antes del confinamiento.
+Además, otra variables que no era significativa, la discapacidad durante el
+confinamiento, pasa a a serlo.
+
+### Modelo de depresión
 
 El análisis de regresión logística multivariado de la incidencia de depresión
 tiene por objeto modelar la incidencia Post-confinamiento en aquellas personas
@@ -931,18 +1087,43 @@ depression_coefficients_table <- depression_coefficients %>%
 depression_coefficients_table
 ```
 
+```{r depression-sig-terms, include=FALSE}
+depression_coefficients |>
+  select(term, Term, p.value) |>
+  filter(term != INTERCEPT_TERM, !is.na(p.value)) |>
+  arrange(p.value) |>
+  mutate(
+    corr_sig  = SIG_LEVEL / (n() - row_number() + 1),
+    signif_0  = p.value < corr_sig,
+    bonf      = p.value < SIG_LEVEL / n(),
+    holm_bonf = signif_0 |> cumprod() |> as.logical()
+  ) |>
+  arrange(desc(p.value)) |>
+  mutate(
+    hochberg = signif_0 |> not() |> cumprod() |> not()
+  ) |>
+  select(-signif_0, -term)
+```
+
 Seleccionando los casos **sin depresión previamente en toda su vida** utilizando
 la variable actualizada vemos que los predictores seleccionados por
 el procedimiento "backward-step selection" son diferentes;
-salen del modelo "Social Support (Pre)" y "Phisical activity (Pre)";
-por otro lado, se selecciona "Economy worsened" que anteriormente no estaba.
-El coeficiente de "Economy worsened" es significativo en principio,
-pero dejaría de serlo tras aplicar corrección de Bonferroni.
+salen del modelo "Social Support (Pre)", "Home quietness" y
+"Phisical activity (Pre)";
+por otro lado, se seleccionan "Loneliness (Pre)", "COVID-19 concern" y
+"Economy worsened", que anteriormente no estaban.
+La significación de "Age" se reduce bastante, y ligeramente
+la de "Resilience (Post)"; sin embargo, ambas dejan de ser significativas
+tras aplicar la corrección de Bonferroni.
+"Working screen time" y "COVID-19 concern" también pasarían a
+ser significativas en principio,
+pero no tras aplicar la corrección de Bonferroni.
 
-La interpretación de los resultados por lo tanto no cambiarían en gran medida;
-Resiliencia Pre y Soledad Post siguen siendo significativos,
-con tamaños de efecto (odds ratios) bastante similares.
-La edad, sin embargo, deja de ser significativa.
+En resumen, la interpretación de los resultados cambia en gran medida;
+solamente la soledad durante el confinamiento sigue siendo asociada a depresión,
+con tamaño de efecto (odds ratio) bastante similar al reportado en el artículo.
+La edad y la resiliencia durante el confinamiento, sin embargo,
+dejan de ser significativas.
 
 # Conclusiones
 

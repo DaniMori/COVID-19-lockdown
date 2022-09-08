@@ -405,7 +405,7 @@ keep ID_ECS q0002_hhid number_id q0007a_result proxy depression_lifetime d_lifet
 
 *Cohorte 2019, linea base:
 
-saveold "../dat/Outcome_depression_ICD10.dta", replace version(13)
+saveold "../dat/Outcome_depression_ICD10_pre.dta", replace version(13)
 
 ```
 
