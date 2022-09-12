@@ -1,0 +1,686 @@
+---
+title: Cambios en artículo "Subestudio COVID" (tablas)
+output:
+  word_document:
+    df_print: kable
+editor_options:
+  chunk_output_type: console
+params:
+  extra: no
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(haven)
+library(dplyr)
+library(RStata)
+library(rmarkdown)
+library(xfun)
+
+
+# File system constants:
+
+ROOT_DIR <- ".."
+OUT_DIR  <- "output"
+SRC_DIR  <- "src"
+SRC_FILE <- file.path(SRC_DIR, "Lockdown_analysis.R")
+
+
+opts_knit$set(root.dir = ROOT_DIR)
+
+# Knitr output configuration:
+
+opts_chunk$set(
+  echo       = FALSE,
+  results    = 'asis',
+  warning    = FALSE,
+  message    = FALSE,
+  cache      = FALSE
+)
+
+options(digits = 3)
+```
+
+```{r read-chunks, cache=FALSE}
+read_chunk(SRC_FILE)
+```
+
+```{r script-configuration, cache=FALSE}
+```
+
+```{r includes, cache=FALSE}
+```
+
+```{r constants}
+```
+
+```{r load-data}
+```
+
+```{r compute-interview-dates}
+```
+
+```{r subset-cases}
+```
+
+```{r compare-excluded-cases}
+```
+
+```{r preprocess-data}
+```
+
+```{r create-var-labels}
+```
+
+```{r missing-responses}
+```
+
+```{r time-varying-predictors}
+```
+
+```{r standardize-predictors}
+```
+
+```{r subset-predictors}
+```
+
+```{r var-descriptives}
+```
+
+```{r depression-dataset}
+```
+
+```{r depression-prevalence-estimates}
+```
+
+```{r suicidal-dataset}
+```
+
+```{r suicidal-prevalence-estimates}
+```
+
+```{r prevalence-estimates-collapsed}
+```
+
+```{r prevalence-values}
+```
+
+```{r depression-selection-no-pre}
+```
+
+```{r depression-no-pre-contingency}
+```
+
+```{r univariate-tests-depression}
+```
+
+```{r predictor-selection-depression}
+```
+
+```{r ordinal-linearity-tests-depression}
+```
+
+```{r stepwise-glm-depression, results='hide'}
+```
+
+```{r conclusions-pre-computations-depression}
+```
+
+```{r depression-coefficients}
+```
+
+```{r suicidal-selection-no-pre}
+```
+
+```{r suicidal-no-pre-contingency}
+```
+
+```{r univariate-tests-suicidal}
+```
+
+```{r predictor-selection-suicidal}
+```
+
+```{r drop-complete-separation-terms-suicidal}
+```
+
+```{r ordinal-linearity-tests-suicidal}
+```
+
+```{r stepwise-glm-suicidal, results='hide'}
+```
+
+```{r conclusions-pre-computations-suicidal}
+```
+
+```{r suicidal-coefficients}
+```
+
+```{r depression-vars}
+depr_vars <- dataset_outcomes |>
+  select(number_id, q0002_hhid, matches("depression"))
+```
+
+# Resultados originales
+
+## Descriptivos
+
+```{r descriptive-stats-table, tab.id="descriptive-stats-table", tab.cap=CAPTION_DESC_VARIABLES, cache=FALSE}
+total_descriptives_out
+```
+
+\newpage
+
+## Prevalencias
+
+```{r prevalence-table, tab.id="prevalence-table", tab.cap=CAPTION_PREVALENCES, cache=FALSE}
+prevalence_table_output
+```
+
+\newpage
+
+## Modelo de depressión
+
+```{r depression-coefficients-table, tab.id="depression-coefficients-table", tab.cap=CAPTION_DEPRESSION_FIT_NEW_TERMS, cache=FALSE}
+depression_coefficients_table
+```
+
+\newpage
+
+## Modelo de ideación suicida
+
+```{r suicidal-coefficients-table, tab.id="suicidal-coefficients-table", tab.cap=CAPTION_SUICIDAL_FIT_NEW_TERMS, cache=FALSE}
+suicidal_coefficients_table
+```
+
+\newpage
+
+# Resultados revisados
+
+```{r depression-pre-new-vars}
+depression_pre_new_dataset <- file.path(
+  DOC_PATH_MASTER,
+  "Edad con salud - Ola 3/Outcomes/Cohorte 2019/Outcome datasets",
+  "Outcome_depression_ICD10.dta"
+) |>
+  read_stata() |>
+  filter(subsample_pre == 1)
+
+depr_pre_new_vars <- depression_pre_new_dataset |>
+  select(ID_ECS, starts_with(c("depression", "d_")))
+```
+
+```{r depression-post-new-vars}
+depression_post_new_dataset <- file.path(
+  DOC_PATH_MASTER,
+  "Edad con salud - Subestudio COVID/Outcomes/Outcome datasets",
+  "Outcome_depression_ICD10.dta"
+) |>
+  read_stata()
+
+depr_post_new_vars <- depression_post_new_dataset |> select(-ESTADO_ENTREVISTA)
+```
+
+```{r check-depr-vars}
+db_ids <- file.path(
+  BASE_DIR,
+  "marta.miret@uam.es - Bases de datos maestras Edad con Salud",
+  "Ola_3/Cohorte_2019",
+  "rawdata_c2019w1.dta"
+) |> 
+  read_dta() |>
+  select(ID_ECS, number_id, q0002_hhid)
+
+depr_pre_new_vars <- db_ids |>
+  right_join(depr_pre_new_vars, by = "ID_ECS") |>
+  select(-ID_ECS) |>
+  semi_join(dataset_outcomes, by = c("number_id", "q0002_hhid"))
+
+depr_post_new_vars <- db_ids |>
+  right_join(depr_post_new_vars, by = "ID_ECS") |>
+  select(-ID_ECS) |>
+  semi_join(dataset_outcomes, by = c("number_id", "q0002_hhid"))
+```
+
+```{r compute-new-depr-vars, cache=TRUE, results='hide'}
+DESCRIPTION_PRE_FILEPATH  <- "notebooks/Description_depression_ICD10_pre"
+DESCRIPTION_POST_FILEPATH <- "notebooks/Description_depression_ICD10_post"
+
+Rscript_call(
+  render,
+  list(input = DESCRIPTION_PRE_FILEPATH |> paste0(".Rmd"))
+)
+Rscript_call(
+  render,
+  list(input = DESCRIPTION_POST_FILEPATH |> paste0(".Rmd"))
+)
+
+# docx outputs are not necessary so they are deleted:
+file.remove(
+  c(DESCRIPTION_PRE_FILEPATH, DESCRIPTION_POST_FILEPATH) |> paste0(".docx")
+)
+
+depression_pre_new_dataset <- file.path(
+  "dat",
+  "Outcome_depression_ICD10_pre.dta"
+) |>
+  read_stata()
+depr_pre_new_vars_all_cases <- depression_pre_new_dataset |>
+  select(
+    q0002_hhid, number_id,
+    ends_with(c("lifetime", "12m", "comparable")),
+    -matches("severity")
+  )
+depr_pre_new_vars <- depr_pre_new_vars_all_cases |>
+  semi_join(dataset_outcomes, by = c("number_id", "q0002_hhid"))
+
+depression_post_new_dataset <- file.path(
+  "dat",
+  "Outcome_depression_ICD10_post.dta"
+) |>
+  read_stata()
+depr_post_new_vars <- depression_post_new_dataset |>
+  rename(number_id = IDENTIFICA1, q0002_hhid = IDENTIFICA2) |>
+  select(-ID_ECS) |>
+  semi_join(
+    dataset_outcomes,
+    by = c("number_id", "q0002_hhid")
+  )
+```
+
+```{r load-data}
+```
+
+```{r depr-pre-new-vars-corrected}
+dataset_outcomes <- dataset_outcomes |>
+  select(
+    everything(),
+    -matches("depression"),
+    matches("severity") # "Depression severity" raise error if dropped
+  ) |>
+  full_join(
+    depr_pre_new_vars_all_cases |> select(
+      q0002_hhid, number_id,
+      depression_lifetime, depression_pre = d_12m_comparable
+    ),
+    by = c("number_id", "q0002_hhid")
+  ) |>
+  full_join(
+    depr_post_new_vars |>
+      select(q0002_hhid, number_id, depression_post = depression_30d),
+    by = c("number_id", "q0002_hhid"))
+```
+
+```{r subset-cases}
+```
+
+```{r compare-excluded-cases}
+```
+
+```{r attrition-depression-lifetime, results='asis'}
+attr_test_depr_lt <- dataset_outcomes_compare_excluded %>%
+  chisq_test_df_var(included, depression_lifetime)
+```
+
+## Descriptivos
+
+```{r preprocess-data}
+```
+
+```{r standardize-predictors}
+```
+
+```{r subset-predictors}
+```
+
+```{r var-descriptives-corrected}
+dataset_outcomes <- dataset_outcomes |>
+  mutate(
+    depression_lifetime  = depression_lifetime |>
+      as_factor() |>
+      set_attr("label", "Lifetime depression"),
+    depression_pre = depression_pre |>
+      as_factor() |>
+      set_attr("label", "Depression"),
+    depression_post = depression_post |>
+      as_factor() |>
+      set_attr("label", "Depression")
+  )
+
+dataset_outcomes_descr_correct <- dataset_outcomes %>% select(
+  ID_CONTACTO,
+  depression_lifetime, depression_pre, depression_post,
+  matches("^suicidal_(pre|post)$"),
+  all_of(all_preds)
+)
+
+quant_descriptives_out <- dataset_outcomes_descr_correct %>%
+  select(-ID_CONTACTO) %>%
+  describe(skew = FALSE, omit = TRUE) %>%
+  as.data.frame() %>%
+  mutate(
+    var      = rownames(.),
+    Variable = var_descriptors[var],
+    n        = n %>% as.integer() # Prevents printing it with 2 decimals
+  ) %>%
+  as_tibble() %>%
+  select(var, Variable, n, mean, sd) %>%
+  mutate(across(where(is.double), number, 1e-2))
+
+cat_descriptives_out <- dataset_outcomes_descr_correct %>%
+  select(where(is.factor)) %>%
+  frequencies_table(missing = FALSE)
+
+sample_contrast_vars <- dataset_outcomes_descr_correct %>%
+  select(ID_CONTACTO, ends_with(c("_pre", "post"))) %>%
+  pivot_longer(
+    -ID_CONTACTO,
+    names_to = c(".value", "Measure"),
+    names_pattern = "(.*)_(.*)"
+  ) %>%
+  mutate(
+    Measure = Measure %>% chartr("p", "P", x = .) %>% factor(MEASURE_LEVELS)
+  )
+
+sample_contrasts <- bind_rows(
+  sample_contrast_vars %>% paired_t_tests_df(Measure, ID_CONTACTO),
+  sample_contrast_vars %>% mcnemar_tests_df(Measure, ID_CONTACTO)
+) %>%
+  mutate(# There is always Pre and Post, so it is indifferent which one to use:
+    var     = var %>% paste0("_pre"),
+    p.value = p.value %>% format_pvalues()
+  ) %>%
+  left_join(
+    var_properties %>% select(var = predictor, labels_abbr),
+    by = "var"
+  ) %>%
+  select(labels_abbr, cat, p.value)
+
+
+quant_total_out <- quant_descriptives_out %>%
+  mutate(
+    var_cat = var_properties$labels_abbr[var],
+    Measure = var_properties$var_measure[var]
+  ) %>%
+  select(-var, -Variable) %>%
+  pivot_wider(names_from = Measure, values_from = n:sd) %>%
+  left_join(sample_contrasts, by = c(var_cat = "labels_abbr")) %>%
+  mutate(var_cat = var_cat %>% paste0(", mean (sd)")) %>%
+  select(var_cat, ends_with(c("Pre", "Post")), p.value) %>%
+  rename_with(str_replace, starts_with("mean"), "mean", "stat1") %>%
+  rename_with(str_replace, starts_with("sd"),   "sd",   "stat2") %>%
+  mutate(across(starts_with("stat2"), enclose, "(")) %>%
+  mutate(across(everything(), as.character)) %>%
+  mutate(is_cat = FALSE) %>% # For left-padding the paragraphs of categories
+  select(-starts_with("n_")) # Not reporting "N total"
+
+cat_total_out <- cat_descriptives_out %>%
+  group_by(Variable) %>%
+  mutate(
+    var_cat = var_properties$labels_abbr[Variable],
+    Measure = var_properties$var_measure[Variable],
+    stat1   = if_else(n() != 3 & Level == "Total", NA_real_, N),
+    stat2   = if_else(
+      Level == "Total",
+      NA_character_,
+      `Percent valid` %>% enclose("(")
+    )
+  ) %>%
+  left_join(
+    sample_contrasts,
+    by = c(var_cat = "labels_abbr", Level = "cat")
+  ) %>%
+  mutate(across(where(is.numeric), as.character)) %>%
+  ungroup() %>%
+  select(-Variable, -(N:`Percent valid`)) %>%
+  pivot_wider(
+    names_from  = Measure,
+    # values_from = n:stat2 # Not reporting "N total"
+    values_from = stat1:stat2
+  ) %>%
+  filter(!Level %in% c("Male", "No")) %>%
+  select(var_cat, Level, ends_with(c("Pre", "Post")), p.value) %>%
+  mutate(aux = var_cat) %>%
+  group_by(aux) %>%
+  mutate(
+    Level = Level %>% if_else(
+        condition = !. %in% c("Yes", "Total") & n() == 2,
+        true      = enclose(., "(") %>% paste0(", n (%)"),
+        false     = .
+      ),
+    var_cat = if_else(
+      Level %in% c("Yes", "Total"),
+      var_cat %>% paste0(", n (%)"),
+      if_else(
+        n() == 2 & !Level %in% c("Yes", "Total"),
+        var_cat %>% paste(Level),
+        paste0(Level)
+      )
+    ), # For left-padding the paragraphs of categories:
+    is_cat = !Level %in% c("Yes", "Total") & n() != 2,
+  ) %>%
+  filter(!(n() == 2 & Level == "Total")) %>%
+  ungroup() %>%
+  select(-aux, -Level)
+
+total_descriptives_out <- quant_total_out %>%
+  bind_rows(cat_total_out) %>%
+  slice( # Custom order:
+    7,     # Age
+    11,    # Sex (Female)
+    12:16, # Education level (Less than primary, Primary, Secondary, Tertiary)
+    8,     # Depression lifetime
+    9,     # Depression
+    10,    # Suicidal ideation
+    4,     # Resilience
+    23,    # Living alone
+    2,     # Social support
+    1,     # Loneliness
+    21:22, # COVID-19 co-habitant, COVID-19 concern,
+    17:20, # COVID-19 severity (Not infected, Infected, Hospitalized)
+    3,     # WHODAS
+    31:35, # Physical pain (None, Light, Moderate, Severe)
+    5:6,   # Working screen time, Non-working screen time
+    28,    # Home quietness
+    29:30, # Economy worsened, Unemployed
+    24:27  # Physical activity (Low, Moderate, High)
+  )
+
+cat_index <- total_descriptives_out %>% pull(is_cat)
+total_descriptives_out <- total_descriptives_out %>% select(-is_cat)
+
+extra_footnote  <- c(13, 14, 21)
+
+total_descriptives_out <- total_descriptives_out %>%
+  mutate(
+    var_cat = var_cat %>% paste0(
+      if_else(
+        row_number() %in% extra_footnote,
+        FOOTNOTE_SYMBOL[1] %>% enclose('^'),
+        ""
+      )
+    )
+  ) %>%
+  flextable() %>%
+  set_header_df(
+    tibble(
+      col_keys = total_descriptives_out %>% colnames(),
+      measure  = c(
+        # Not reporting "N total"
+        # "Variable / Category", PRE_LEVEL  %>% rep(3), POST_LEVEL %>% rep(3)
+        "Variable",
+        MEASURE_LEVELS %>% paste0("-confinement") %>% rep(each = 2),
+        "*p* value"
+      )
+    )
+  ) %>%
+  colformat_md(j = 6, part = "header") %>%
+  colformat_md(j = 1, part = "all") %>%
+  add_footer(var_cat = DESCRIPTIVES_FOOTER) %>%
+  merge_at(part = "footer") %>%
+  footnote(
+    value       = as_paragraph(
+      c(
+        FOOTNOTE_VARS_SCALE,
+        var_descriptors[c("rel_isolated", "rel_concerned", "severity")] %>%
+          paste0('.')
+      )
+    ),
+    i           = c(11, 15:17),
+    j           = 1,
+    ref_symbols = FOOTNOTE_SYMBOL[1:4]
+  ) %>%
+  footnote(
+    value       = as_paragraph(FOOTNOTE_DESCRIPTIVE_P_VALUES),
+    i           = 1,
+    j           = 6,
+    part        = "header",
+    ref_symbols = '*'
+  ) %>%
+  merge_h(part = "header") %>%
+  theme_booktabs() %>%
+  flextable::style(i = cat_index, j = 1, pr_p = fp_par(padding.left = 30)) %>%
+  align(j = c(2, 4, 6), align = "right", part = "all") %>%
+  align(i = 1, align = "center", part = "header") %>%
+  font(fontname = "Times New Roman", part = "all") %>%
+  padding(padding.top = 1, padding.bottom = 1) %>%
+  border(border.bottom = fp_border(style = "none"), part = "footer") %>%
+  autofit()
+```
+
+```{r descriptive-stats-table-corrected, tab.id="descriptive-stats-table-corrected", tab.cap=CAPTION_DESC_VARIABLES}
+total_descriptives_out
+```
+
+\newpage
+
+## Tasas de prevalencia
+
+```{r depression-dataset}
+```
+
+```{r depression-prevalence-estimates}
+```
+
+<!-- Cálculos de depresión: -->
+
+```{r suicidal-dataset}
+```
+
+```{r suicidal-prevalence-estimates}
+```
+
+```{r prevalence-estimates-collapsed}
+```
+
+```{r prevalence-values}
+```
+
+```{r prevalence-table-corrected, tab.id="prevalence-table-corrected", tab.cap=CAPTION_PREVALENCES}
+prevalence_table_output
+```
+
+```{r suicidal-selection-no-pre}
+```
+
+```{r univariate-tests-suicidal}
+```
+
+```{r predictor-selection-suicidal}
+```
+
+```{r drop-complete-separation-terms-suicidal}
+```
+
+```{r ordinal-linearity-tests-suicidal}
+```
+
+```{r stepwise-glm-suicidal, message=FALSE, results='hide'}
+```
+
+```{r suicidal-coefficients}
+```
+
+\newpage
+
+## Modelo de depresión
+
+```{r rename-depression-lifetime}
+dataset_outcomes <- dataset_outcomes |>
+  select(-depression_pre) |>
+  rename(depression_pre = depression_lifetime)
+```
+
+```{r standardize-predictors}
+```
+
+```{r subset-predictors}
+```
+
+```{r depression-dataset}
+```
+
+```{r depression-selection-no-pre}
+```
+
+```{r univariate-tests-depression}
+```
+
+```{r predictor-selection-depression}
+```
+
+```{r ordinal-linearity-tests-depression}
+```
+
+```{r stepwise-glm-depression, message=FALSE, results='hide'}
+```
+
+```{r depression-coefficients-corrected}
+depression_coefficients <- depression_coefficients %>%
+  mutate(
+    OR         = exp(estimate) %>% number(1e-2),
+    ci.inf     = exp(estimate - std.error * CI_FACTOR),
+    ci.sup     = exp(estimate + std.error * CI_FACTOR),
+    `(95% CI)` = format_ci(ci.inf, ci.sup, sig = 2, quoting = "("),
+    `*p* value`  = p.value   %>% format_pvalues(),
+    sig        = p.value %>% is_less_than(SIG_LEVEL / (n() - 1)) %>%
+      if_else("*", ""), # -1 to omit intercept
+    statistic = statistic %>% number(1e-2),
+    across(where(is.numeric), number, 1e-3)
+  ) %>%
+  format_term_label(
+    .data   = depression_neg_pre,
+    .labels = var_properties %>% pull(labels_comp),
+    add_ref = FALSE
+  ) %>%
+  order_terms_with_data(dataset_outcomes)
+
+depression_coefficients_table <- depression_coefficients %>%
+  select(Term, OR, `(95% CI)`, z = statistic, `*p* value`) %>%
+  mutate(across(where(is.numeric), number, 1e-3)) %>% 
+  flextable() %>%
+  add_footer(Term = DEPRESSION_MODEL_FOOTER) %>%
+  merge_at(part = "footer") %>%
+  theme_booktabs() %>%
+  colformat_md(part = "all") %>%
+  align(j = c(2, 4, 5), align = "right", part = "all") %>%
+  align(i = 1, align = "center", part = "header") %>%
+  font(fontname = "Times New Roman", part = "all") %>%
+  border(border.bottom = fp_border(style = "none"), part = "footer") %>%
+  autofit()
+```
+
+```{r depression-coefficients-table-corrected, tab.id="depression-coefficients-table-corrected", tab.cap=CAPTION_DEPRESSION_FIT_NEW_TERMS, cache=FALSE}
+depression_coefficients_table
+```
+
+\newpage
+
+## Modelo de ideación suicida
+
+```{r suicidal-coefficients-table-corrected, tab.id="suicidal-coefficients-table-corrected", tab.cap=CAPTION_SUICIDAL_FIT_NEW_TERMS, cache=FALSE}
+suicidal_coefficients_table
+```
+
+```{r session-info, results='markup', include=FALSE}
+```
