@@ -224,7 +224,7 @@ depr_post_new_vars <- depression_post_new_dataset |> select(-ESTADO_ENTREVISTA)
 ```{r check-depr-vars}
 db_ids <- file.path(
   BASE_DIR,
-  "marta.miret@uam.es - Bases de datos maestras Edad con Salud",
+  "Marta Miret Garcia - Bases de datos maestras Edad con Salud",
   "Ola_3/Cohorte_2019",
   "rawdata_c2019w1.dta"
 ) |> 

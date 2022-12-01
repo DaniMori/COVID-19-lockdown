@@ -64,7 +64,7 @@ PROJECT_NAME <- "Edad con Salud" %>% ftext(
 BASE_DIR <- "~/../UAM"
 DOC_PATH_MASTER <- file.path(
   BASE_DIR,
-  "marta.miret@uam.es - Documentacion Edad con Salud"
+  "Marta Miret Garcia - Documentacion Edad con Salud"
 )
 DB_PATH <- file.path(
   DOC_PATH_MASTER,
