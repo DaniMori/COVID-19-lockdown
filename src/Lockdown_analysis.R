@@ -18,6 +18,7 @@ ggplot2::theme_set(ggplot2::theme_minimal())
 ## ----includes----
 
 library(tidyverse)
+library(ecs.data)
 library(magrittr)
 library(haven)
 library(flextable)
@@ -61,14 +62,11 @@ PROJECT_NAME <- "Edad con Salud" %>% ftext(
 )
 
 # File system:
-BASE_DIR <- "~/../UAM"
-DOC_PATH_MASTER <- file.path(
-  BASE_DIR,
-  "marta.miret@uam.es - Documentacion Edad con Salud"
-)
-DB_PATH <- file.path(
+DOC_PATH_MASTER <- read_ecs_folder("DOC")
+DB_PATH         <- file.path(
   DOC_PATH_MASTER,
-  "Edad con salud - Subestudio COVID/BBDD_con_outcomes"
+  "Edad con salud - Subestudio COVID",
+  "BBDD_con_outcomes"
 )
 
 # Collapsed outcomes dataset:

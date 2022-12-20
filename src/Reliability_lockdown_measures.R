@@ -16,6 +16,7 @@
 
 ## ----includes----
 library(tidyverse)
+library(ecs.data)
 library(magrittr)
 library(haven)
 library(psych)
@@ -26,11 +27,7 @@ source("R/Output.R",        encoding = 'UTF-8')
 ## ----constants----
 
 # File system:
-BASE_DIR <- "~/../UAM"
-DB_PATH_MAIN <- file.path(
-  BASE_DIR,
-  "marta.miret@uam.es - Bases de datos maestras Edad con Salud"
-)
+DB_PATH_MAIN <- read_ecs_folder("DB")
 DB_PRE_DIR <- file.path(
   DB_PATH_MAIN,
   "Ola_3/Cohorte_2019"
