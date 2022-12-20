@@ -118,9 +118,6 @@ n_depr_pre_new_vars  <- depr_pre_new_vars  |> nrow()
 n_depr_post_new_vars <- depr_post_new_vars |> nrow() # También igual a 1103
 ```
 
-```{r load-data}
-```
-
 ```{r depr-pre-new-vars-corrected, echo=TRUE}
 dataset_outcomes <- dataset_outcomes |>
   select(
