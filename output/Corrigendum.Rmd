@@ -13,8 +13,7 @@ params:
 ---
 
 ```{r setup, include=FALSE}
-library(pacman)
-p_load(knitr)
+library(knitr)
 
 
 # File system constants:
