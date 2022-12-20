@@ -526,13 +526,27 @@ ordinal_preds      <- dataset_predictors %>%
 
 ## ----var-descriptives----
 
-dataset_outcomes_descr <- dataset_outcomes %>% select(
+dataset_outcomes <- dataset_outcomes |>
+  mutate(
+    depression_lifetime  = depression_lifetime |>
+      as_factor() |>
+      set_attr("label", "Lifetime depression"),
+    depression_pre = depression_pre |>
+      as_factor() |>
+      set_attr("label", "Depression"),
+    depression_post = depression_post |>
+      as_factor() |>
+      set_attr("label", "Depression")
+  )
+
+dataset_outcomes_descr_correct <- dataset_outcomes %>% select(
   ID_CONTACTO,
-  depression_pre, depression_post, matches("^suicidal_(pre|post)$"),
+  depression_lifetime, depression_pre, depression_post,
+  matches("^suicidal_(pre|post)$"),
   all_of(all_preds)
 )
 
-quant_descriptives_out <- dataset_outcomes_descr %>%
+quant_descriptives_out <- dataset_outcomes_descr_correct %>%
   select(-ID_CONTACTO) %>%
   describe(skew = FALSE, omit = TRUE) %>%
   as.data.frame() %>%
@@ -545,11 +559,11 @@ quant_descriptives_out <- dataset_outcomes_descr %>%
   select(var, Variable, n, mean, sd) %>%
   mutate(across(where(is.double), number, 1e-2))
 
-cat_descriptives_out <- dataset_outcomes_descr %>%
+cat_descriptives_out <- dataset_outcomes_descr_correct %>%
   select(where(is.factor)) %>%
   frequencies_table(missing = FALSE)
 
-sample_contrast_vars <- dataset_outcomes_descr %>%
+sample_contrast_vars <- dataset_outcomes_descr_correct %>%
   select(ID_CONTACTO, ends_with(c("_pre", "post"))) %>%
   pivot_longer(
     -ID_CONTACTO,
@@ -573,7 +587,6 @@ sample_contrasts <- bind_rows(
     by = "var"
   ) %>%
   select(labels_abbr, cat, p.value)
-
 
 quant_total_out <- quant_descriptives_out %>%
   mutate(
@@ -622,10 +635,10 @@ cat_total_out <- cat_descriptives_out %>%
   group_by(aux) %>%
   mutate(
     Level = Level %>% if_else(
-        condition = !. %in% c("Yes", "Total") & n() == 2,
-        true      = enclose(., "(") %>% paste0(", n (%)"),
-        false     = .
-      ),
+      condition = !. %in% c("Yes", "Total") & n() == 2,
+      true      = enclose(., "(") %>% paste0(", n (%)"),
+      false     = .
+    ),
     var_cat = if_else(
       Level %in% c("Yes", "Total"),
       var_cat %>% paste0(", n (%)"),
@@ -645,28 +658,29 @@ total_descriptives_out <- quant_total_out %>%
   bind_rows(cat_total_out) %>%
   slice( # Custom order:
     7,     # Age
-    10,    # Sex (Female)
-    11:15, # Education level (Less than primary, Primary, Secondary, Tertiary)
-    8,     # Depression
-    9,     # Suicidal ideation
+    11,    # Sex (Female)
+    12:16, # Education level (Less than primary, Primary, Secondary, Tertiary)
+    8,     # Depression lifetime
+    9,     # Depression
+    10,    # Suicidal ideation
     4,     # Resilience
-    22,    # Living alone
+    23,    # Living alone
     2,     # Social support
     1,     # Loneliness
-    20:21, # COVID-19 co-habitant, COVID-19 concern,
-    16:19, # COVID-19 severity (Not infected, Infected, Hospitalized)
+    21:22, # COVID-19 co-habitant, COVID-19 concern,
+    17:20, # COVID-19 severity (Not infected, Infected, Hospitalized)
     3,     # WHODAS
-    30:34, # Physical pain (None, Light, Moderate, Severe)
+    31:35, # Physical pain (None, Light, Moderate, Severe)
     5:6,   # Working screen time, Non-working screen time
-    27,    # Home quietness
-    28:29, # Economy worsened, Unemployed
-    23:26  # Physical activity (Low, Moderate, High)
+    28,    # Home quietness
+    29:30, # Economy worsened, Unemployed
+    24:27  # Physical activity (Low, Moderate, High)
   )
 
 cat_index <- total_descriptives_out %>% pull(is_cat)
 total_descriptives_out <- total_descriptives_out %>% select(-is_cat)
 
-extra_footnote  <- c(12, 13, 20)
+extra_footnote  <- c(13, 14, 21)
 
 total_descriptives_out <- total_descriptives_out %>%
   mutate(
@@ -703,7 +717,7 @@ total_descriptives_out <- total_descriptives_out %>%
           paste0('.')
       )
     ),
-    i           = c(10, 14:16),
+    i           = c(11, 15:17),
     j           = 1,
     ref_symbols = FOOTNOTE_SYMBOL[1:4]
   ) %>%
@@ -723,7 +737,6 @@ total_descriptives_out <- total_descriptives_out %>%
   padding(padding.top = 1, padding.bottom = 1) %>%
   border(border.bottom = fp_border(style = "none"), part = "footer") %>%
   autofit()
-
 
 ## ---- Prevalence: ----
 
@@ -1268,16 +1281,9 @@ depression_coefficients_table <- depression_coefficients %>%
   colformat_md(part = "all") %>%
   align(j = c(2, 4, 5), align = "right", part = "all") %>%
   align(i = 1, align = "center", part = "header") %>%
-  footnote(
-    value = as_paragraph(FOOTNOTE_LINEAR_COVARIATE),
-    i           = 10,
-    j           = 1,
-    ref_symbols = FOOTNOTE_SYMBOL[1]
-  ) %>%
   font(fontname = "Times New Roman", part = "all") %>%
   border(border.bottom = fp_border(style = "none"), part = "footer") %>%
   autofit()
-
 
 ## ---- Suicidal ideation: ----
 
