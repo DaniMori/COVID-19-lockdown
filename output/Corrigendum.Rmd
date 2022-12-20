@@ -33,17 +33,12 @@ opts_chunk$set(
   results    = 'asis',
   warning    = FALSE,
   message    = FALSE,
-  cache      = TRUE,
+  cache      = FALSE,
   fig.width  = 16.59/2.54,
   fig.height = 4.5
 )
 
 options(digits = 3)
-```
-
-```{r libraries}
-library(xfun)
-library(rmarkdown)
 ```
 
 ```{r read-chunks, cache=FALSE}
@@ -66,72 +61,9 @@ read_chunk(SRC_FILE)
 ```
 
 ```{r compute-new-depr-vars, cache=TRUE, results='hide'}
-DESCRIPTION_PRE_FILEPATH  <- "notebooks/Description_depression_ICD10_pre"
-DESCRIPTION_POST_FILEPATH <- "notebooks/Description_depression_ICD10_post"
-
-Rscript_call(
-  render,
-  list(input = DESCRIPTION_PRE_FILEPATH |> paste0(".Rmd"))
-)
-Rscript_call(
-  render,
-  list(input = DESCRIPTION_POST_FILEPATH |> paste0(".Rmd"))
-)
-
-# docx outputs are not necessary so they are deleted:
-file.remove(
-  c(DESCRIPTION_PRE_FILEPATH, DESCRIPTION_POST_FILEPATH) |> paste0(".docx")
-)
-
-depression_pre_new_dataset <- file.path(
-  "dat",
-  "Outcome_depression_ICD10_pre.dta"
-) |>
-  read_stata()
-depr_pre_new_vars_all_cases <- depression_pre_new_dataset |>
-  select(
-    q0002_hhid, number_id,
-    ends_with(c("lifetime", "12m", "comparable")),
-    -matches("severity")
-  )
-depr_pre_new_vars <- depr_pre_new_vars_all_cases |>
-  semi_join(dataset_outcomes, by = c("number_id", "q0002_hhid"))
-
-depression_post_new_dataset <- file.path(
-  "dat",
-  "Outcome_depression_ICD10_post.dta"
-) |>
-  read_stata()
-depr_post_new_vars <- depression_post_new_dataset |>
-  rename(number_id = IDENTIFICA1, q0002_hhid = IDENTIFICA2) |>
-  select(-ID_ECS) |>
-  semi_join(
-    dataset_outcomes,
-    by = c("number_id", "q0002_hhid")
-  )
-
-n_depr_pre_new_vars  <- depr_pre_new_vars  |> nrow()
-n_depr_post_new_vars <- depr_post_new_vars |> nrow() # También igual a 1103
 ```
 
 ```{r depr-pre-new-vars-corrected, echo=TRUE}
-dataset_outcomes <- dataset_outcomes |>
-  select(
-    everything(),
-    -matches("depression"),
-    matches("severity") # "Depression severity" raise error if dropped
-  ) |>
-  full_join(
-    depr_pre_new_vars_all_cases |> select(
-      q0002_hhid, number_id,
-      depression_lifetime, depression_pre = d_12m_comparable
-    ),
-    by = c("number_id", "q0002_hhid")
-  ) |>
-  full_join(
-    depr_post_new_vars |>
-      select(q0002_hhid, number_id, depression_post = depression_30d),
-    by = c("number_id", "q0002_hhid"))
 ```
 
 # Method
@@ -451,13 +383,14 @@ The final regression model for depression was fit
 with a sample size of `r nobs`.
 Its covariates are given in Table 3,
 along with their odds-ratios.
-The coefficient for Age was found to be significant,
-along with the Post-measures of `r depression_sig_terms_labels`.
+The coefficient for `r depression_sig_term_cov_concern` was found to be
+significant, along with the Post-measures of `r depression_sig_terms_labels`.
 
-The odds-ratio for Age was `r depr_age_OR` (`r depr_age_test`);
-for each year,
-the risk of developing depression was expected to `r depr_age_dir`
-by `r depr_age_decr`.
+The odds-ratio for `r depression_sig_term_cov_concern` was `r depr_concern_OR`
+(`r depr_concern_test`);
+that is,
+the risk of developing depression was expected to more than for those who
+reported being concerned about a relative or friend infected by COVID-19.
 For `r depr_ucla_lon_post_lab`, the odds-ratio was `r depr_ucla_lon_post_OR`
 (`r depr_ucla_lon_post_test`),
 which means that an increase of one standard deviation
@@ -514,11 +447,11 @@ This implies that an increase of one standard deviation
 in the Post measure of the Oslo-3 Social Support Scale was associated with
 `r suic_oslo3_post_dir` of `r suic_oslo3_post_abs`
 in the odds-ratio of reporting having suicidal ideation in the Post measure.
-The odds-ratio for `r suic_resilience_post_label`
-was `r suic_resilience_post_coef` (`r suic_resilience_post_test`),
-implying `r suic_resilience_post_dir` of `r suic_resilience_post_abs`
-for an increase of one standard deviation in the Post measure of the
-Brief Resilience Scale.
+The odds-ratio for `r suic_disability_post_label`
+was `r suic_disability_post_coef` (`r suic_disability_post_test`),
+implying `r suic_disability_post_dir` of `r suic_disability_post_abs`
+for a one-standard-deviation increase in the Post measure of the
+WHODAS 2.0 scale.
 
 ```{r session-info, results='hide'}
 ```
