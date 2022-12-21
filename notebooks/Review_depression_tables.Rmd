@@ -419,7 +419,7 @@ cat_total_out <- cat_descriptives_out %>%
   mutate(
     var_cat = var_properties$labels_abbr[Variable],
     Measure = var_properties$var_measure[Variable],
-    stat1   = if_else(n() != 3 & Level == "Total", NA_real_, N),
+    stat1   = if_else(n() != 3 & Level == "Total", NA_integer_, N),
     stat2   = if_else(
       Level == "Total",
       NA_character_,
