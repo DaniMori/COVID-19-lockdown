@@ -1032,6 +1032,15 @@ mcnemar_suic_test <- suicidal_prevalence_post %>%
   print_chisq_test()
 
 
+mcnemar_depr_test_men    <- depression_prevalence_post %>%
+  filter(Group == "Male") %>%
+  print_chisq_test()
+
+mcnemar_depr_test_women    <- depression_prevalence_post %>%
+  filter(Group == "Female") %>%
+  print_chisq_test()
+
+
 prevalences_young <- prevalence_tables %>%
   map(filter, Group == AGE_GROUPS[1]) %>%
   map(pull, Prevalence)

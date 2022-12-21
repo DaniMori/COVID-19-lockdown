@@ -332,21 +332,24 @@ for the sample included in the analysis are shown in Table 1.
 ```
 
 Estimated prevalence rates are given in Table 2.
-For depression, it increased from
+For depression, the prevalence increased from
 `r depression_prev_pre` in the Pre to `r depression_prev_post`
 in the Post measure.
-According to the McNemar's test, the difference was not significant
-(`r mcnemar_depr_test`).
+According to the McNemar's test, the difference was significant
+(`r mcnemar_depr_test`), as was for men (`r mcnemar_depr_test_men`) and women
+(`r mcnemar_depr_test_women`) considered separately.
 When considering the differentiated age groups,
 the difference was more prominent for the `r AGE_GROUPS[1]`
 (increasing from `r depression_prev_pre_young` to
 `r depression_prev_post_young`)
 and the `r AGE_GROUPS[2]`
 (increasing from `r depression_prev_pre_middle` to
-`r depression_prev_post_middle`) groups, but none of them was significant.
-However, a significant decrease from `r depression_prev_pre_old` to
-`r depression_prev_post_old` was observed in the `r AGE_GROUPS[3]` group
-(`r mcnemar_depr_test_old`).
+`r depression_prev_post_middle`) groups.
+Although the increase in the `r AGE_GROUPS[3]` group was still significant
+(from `r depression_prev_pre_old` to `r depression_prev_post_old`;
+`r mcnemar_depr_test_old`), it was much less prominent when compared with the
+younger groups.
+
 For suicidal ideation, the prevalence rate estimate increased from
 `r suicidal_prev_pre` in the Pre to `r suicidal_prev_post` in the Post measure,
 but this difference was not significant (`r mcnemar_suic_test`).
