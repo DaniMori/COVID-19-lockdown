@@ -1286,17 +1286,6 @@ depr_ucla_lon_post_incr <- (depr_ucla_lon_post_coef %>% exp() - 1) %>%
   abs() %>%
   percent(.1)
 
-depr_ucla_lon_post_scaling <- dataset_outcomes_std %>%
-  pull(ucla_lon_post) %>%
-  attr("scaled:scale")
-
-depr_ucla_lon_post_coef_abs_score <- (
-  depr_ucla_lon_post_coef / depr_ucla_lon_post_scaling * 100 / 6
-) %>%
-  exp() %>%
-  subtract(1) %>%
-  percent(1e-1)
-
 
 # Resilience scale (post):
 depr_resilience_post_term <- depression_coefs_sig %>%
@@ -1314,18 +1303,6 @@ depr_resilience_post_dir  <- depr_resilience_post_coef %>%
 depr_resilience_post_decr <- (depr_resilience_post_coef %>% exp() - 1) %>%
   abs() %>%
   percent(.1)
-
-depr_resilience_post_scaling <- dataset_outcomes_std %>%
-  pull(resilience_post) %>%
-  attr("scaled:scale")
-
-depr_resilience_post_coef_abs_score <- (
-  depr_resilience_post_coef / depr_resilience_post_scaling
-) %>%
-  exp() %>%
-  subtract(1) %>%
-  abs() %>%
-  percent(1e-1)
 
 
 ## ----depression-coefficients----
@@ -1623,16 +1600,6 @@ suic_disability_post_test <- suic_disability_post_term %>% print_z_test()
 suic_disability_post_scaling <- dataset_outcomes_std %>%
   pull(whodas12_post) %>%
   attr("scaled:scale")
-
-# Negative OR per point in the scale
-#   (each point == increment of `suic_disability_post_OR` in the odds)
-suic_disability_post_OR <- (
-  exp(
-    log(suic_disability_post_coef) * 100 / 11 / suic_disability_post_scaling
-  ) - 1
-) %>%
-  percent(.1)
-
 
 ## ----suicidal-coefficients----
 
