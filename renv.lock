@@ -2537,10 +2537,10 @@
     },
     "rvg": {
       "Package": "rvg",
-      "Version": "0.3.0",
+      "Version": "0.3.1",
       "Source": "Repository",
       "Repository": "CRAN",
-      "Hash": "01cc7cc67b13b8226707415828a2a7be",
+      "Hash": "47ed4d4f3b789175d73ca5b8304611e3",
       "Requirements": [
         "Rcpp",
         "gdtools",
