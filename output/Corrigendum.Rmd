@@ -63,7 +63,7 @@ read_chunk(SRC_FILE)
 ```{r compute-new-depr-vars, cache=TRUE, results='hide'}
 ```
 
-```{r depr-pre-new-vars-corrected, echo=TRUE}
+```{r depr-pre-new-vars-corrected}
 ```
 
 # Method
@@ -354,6 +354,18 @@ After Bonferroni correction,
 none of the disaggregated estimates was significant either.
 
 ## Risk of depression after the lockdown
+
+```{r rename-depression-lifetime}
+```
+
+```{r standardize-predictors}
+```
+
+```{r subset-predictors}
+```
+
+```{r depression-dataset}
+```
 
 ```{r depression-selection-no-pre}
 ```

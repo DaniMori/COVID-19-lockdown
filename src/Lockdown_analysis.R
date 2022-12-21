@@ -1062,6 +1062,11 @@ mcnemar_depr_test_old    <- depression_prevalence_post %>%
 
 ## ---- Depression: ----
 
+## ----rename-depression-lifetime----
+dataset_outcomes <- dataset_outcomes |>
+  select(-depression_pre) |>
+  rename(depression_pre = depression_lifetime)
+
 ## ----depression-selection-no-pre----
 
 depression_neg_pre <- depression %>% filter(Pre == "No")
