@@ -355,16 +355,16 @@ none of the disaggregated estimates was significant either.
 
 ## Risk of depression after the lockdown
 
-```{r rename-depression-lifetime}
+```{r rename-depression-lifetime, eval=FALSE}
 ```
 
-```{r standardize-predictors}
+```{r standardize-predictors, eval=FALSE}
 ```
 
-```{r subset-predictors}
+```{r subset-predictors, eval=FALSE}
 ```
 
-```{r depression-dataset}
+```{r depression-dataset, eval=FALSE}
 ```
 
 ```{r depression-selection-no-pre}
