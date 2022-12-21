@@ -272,8 +272,8 @@ A significance level of `r sig_level_print` was used throughout.
 All significance tests were performed
 applying Bonferroni correction for multiple comparisons
 (unless stated otherwise).
-All the analyses were conducted in R v. 4.0.3 [@r_core_team_r:_2019].
-Package survey v. 4.0 [@lumley_analysis_2004]
+All the analyses were conducted in R v. 4.2.2 [@r_core_team_r:_2019].
+Package survey v. 4.1-1 [@lumley_analysis_2004]
 was used to fit the models.
 
 # Results
