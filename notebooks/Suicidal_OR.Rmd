@@ -1,0 +1,294 @@
+---
+title: 'Baseline loneliness associated with post depression and/or suicidal ideation'
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+    df_print: kable
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(glue)
+library(gtsummary)
+library(labelled)
+
+# File system constants:
+
+ROOT_DIR <- ".."
+OUT_DIR  <- "output"
+SRC_DIR  <- "src"
+SRC_FILE <- file.path(SRC_DIR, "Lockdown_analysis.R")
+
+
+opts_knit$set(root.dir = ROOT_DIR)
+
+# Knitr output configuration:
+
+opts_chunk$set(
+  echo       = FALSE,
+  results    = 'asis',
+  warning    = FALSE,
+  message    = FALSE,
+  cache      = FALSE,
+  fig.width  = 16.59/2.54,
+  fig.height = 4.5
+)
+
+options(digits = 3)
+```
+
+# Intro
+
+First, we source all the code from the paper, to make sure the results are
+the same as published (in this case, in the ammendment).
+This gives tables 1 through 4 as output.
+(This tables are fromatted as the Word output, so are not html optimized.)
+
+```{r read-chunks, cache=FALSE}
+read_chunk(SRC_FILE)
+```
+
+```{r script-configuration, cache=FALSE}
+```
+
+```{r includes, cache=FALSE}
+```
+
+```{r reliability, cache=FALSE}
+```
+
+```{r constants}
+```
+
+```{r load-data}
+```
+
+```{r compute-new-depr-vars, cache=TRUE, results='hide'}
+```
+
+```{r depr-pre-new-vars-corrected}
+```
+
+```{r compute-interview-dates}
+```
+
+```{r subset-cases}
+```
+
+```{r compare-excluded-cases}
+```
+
+```{r preprocess-data}
+```
+
+```{r create-var-labels}
+```
+
+```{r missing-responses}
+```
+
+```{r time-varying-predictors}
+```
+
+```{r standardize-predictors}
+```
+
+```{r subset-predictors}
+```
+
+```{r var-descriptives}
+```
+
+```{r depression-dataset}
+```
+
+```{r depression-prevalence-estimates}
+```
+
+```{r depression-association-population}
+```
+
+```{r suicidal-dataset}
+```
+
+```{r suicidal-prevalence-estimates}
+```
+
+```{r suicidal-association-population}
+```
+
+```{r prevalence-estimates-collapsed}
+```
+
+```{r prevalence-values}
+```
+
+```{r rename-depression-lifetime, eval=FALSE}
+```
+
+```{r standardize-predictors, eval=FALSE}
+```
+
+```{r subset-predictors, eval=FALSE}
+```
+
+```{r depression-dataset, eval=FALSE}
+```
+
+```{r depression-selection-no-pre}
+```
+
+```{r depression-no-pre-contingency}
+```
+
+```{r univariate-tests-depression}
+```
+
+```{r predictor-selection-depression}
+```
+
+```{r ordinal-linearity-tests-depression}
+```
+
+```{r stepwise-glm-depression, results='hide'}
+```
+
+```{r conclusions-pre-computations-depression}
+```
+
+```{r depression-coefficients}
+```
+
+```{r suicidal-selection-no-pre}
+```
+
+```{r suicidal-no-pre-contingency}
+```
+
+```{r univariate-tests-suicidal}
+```
+
+```{r predictor-selection-suicidal}
+```
+
+```{r drop-complete-separation-terms-suicidal}
+```
+
+```{r ordinal-linearity-tests-suicidal}
+```
+
+```{r stepwise-glm-suicidal, results='hide'}
+```
+
+```{r conclusions-pre-computations-suicidal}
+```
+
+```{r suicidal-coefficients}
+```
+
+# Original tables
+
+```{r set-flextable-wd, cache=FALSE}
+# This is necessary for flextable to work:
+opts_knit$set(root.dir = file.path(getwd(), OUT_DIR))
+```
+
+## Table 1
+
+```{r descriptive-stats-table, tab.id="descriptive-stats-table", tab.cap=CAPTION_DESC_VARIABLES, cache=FALSE}
+total_descriptives_out
+```
+
+## Table 2
+
+```{r prevalence-table, tab.id="prevalence-table", tab.cap=CAPTION_PREVALENCES, cache=FALSE}
+prevalence_table_output
+```
+
+## Table 3
+
+```{r depression-coefficients-table, tab.id="depression-coefficients-table", tab.cap=CAPTION_DEPRESSION_FIT_NEW_TERMS, cache=FALSE}
+depression_coefficients_table
+```
+
+## Table 4
+
+```{r suicidal-coefficients-table, tab.id="suicidal-coefficients-table", tab.cap=CAPTION_SUICIDAL_FIT_NEW_TERMS, cache=FALSE}
+suicidal_coefficients_table
+```
+
+# Information requested
+
+## OR for univariate associations with suicidal ideation (post measure)
+
+### Recoding of `severity`
+
+This variable expresses the "severity" of the COVID-19 infection, expressing
+only whether the participant was hospitalized due to COVID-19, in addition to
+being infected. In order to give a univariate coefficient of whether the
+participant was infected or not, we recoded this variable into a new
+(dichotomous) one, indicating only whether the participant was infected with
+COVID-19 or not (then re-create the survey design object based on this dataset).
+
+```{r recode-covid19-infection, echo=TRUE}
+suicidal_neg_pre <- suicidal_neg_pre |>
+  mutate(infected = severity |> str_detect("Infected"))
+
+suicidal_neg_pre |> count(infected, Post)
+```
+
+It can be seen that the new `infected` variable produces **complete separation**
+of the outcome, and is thus cannot be included in the univariate regression
+models.
+
+### Pre-computations
+
+```{r create-new-svy-object, echo=TRUE}
+suicidal_neg_pre <- suicidal_neg_pre                                       |>
+  # Recode all factor variables as nominal (to get a coefficient per level)
+  mutate(across(c(edu_level_rec, physical_post), factor, ordered = FALSE)) |>
+  # Set additional variable labels to make the table output more readable
+  set_variable_labels(
+    Age             = "Age category",
+    edu_level_rec   = "Educational level",
+    resilience_post = "Resilience - Post (BRS)",
+    oslo3_sss_post  = "Social Support - Post (Oslo SSS)",
+    ucla_lon_post   = "Loneliness - Post (UCLA Loneliness)",
+    whodas12_post   = "Disability - Post (WHODAS)",
+    physical_post   = "Physical activity - Post (GPAQ-II)"
+  )
+
+# Selection of variables requested:
+univariate_vars <- c(
+  "age_post", "Age", "sex", "edu_level_rec", "depression_post",
+  "resilience_post", "livesalone_post", "oslo3_sss_post", "ucla_lon_post",
+  "rel_concerned", "whodas12_post", "economy", "unemployment", "physical_post"
+)
+
+# Redefine the survey design object to include all values:
+suicidal_np_design <- svydesign(
+  ids     = suicidal_neg_pre |> pull(ID_CONTACTO),
+  # Select requested covariates to create the input to `tbl_uvregression`:
+  data    = suicidal_neg_pre |> select(Post, all_of(univariate_vars)),
+  weights = suicidal_neg_pre %>% pull(weights)
+)
+```
+
+### Odds-ratios for the univariate models
+
+The following table summarizes the odds-ratios for each of the (weighted)
+univariate model, including each of them an intercept term (not shown):
+
+```{r, echo=TRUE}
+suicidal_np_design |> tbl_uvregression(
+  method       = svyglm,
+  y            = Post,
+  method.args  = list(family = quasibinomial),
+  exponentiate = TRUE,
+  estimate_fun = ~style_number(.x, digits = 3),
+  pvalue_fun   = ~ style_pvalue(.x, digits = 3)
+)
+```
