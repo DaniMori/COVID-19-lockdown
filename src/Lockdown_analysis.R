@@ -51,7 +51,7 @@ source("R/Lang_EN.R", encoding = 'UTF-8')
 
 ## ----reliability----
 
-source("src/Reliability_lockdown_measures.R") # Fails in R 4.1.0!
+source("src/Reliability_lockdown_measures.R", encoding = 'UTF-8') # Fails in R 4.1.0!
 
 
 ## ----constants----

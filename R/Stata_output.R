@@ -24,7 +24,7 @@ library(magrittr)
 library(purrr)
 library(glue)
 
-source("R/parse_arguments.R")
+source("R/parse_arguments.R", encoding = 'UTF-8')
 
 
 ## ---- CONSTANTS: -------------------------------------------------------------

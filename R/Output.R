@@ -22,8 +22,7 @@ library(glue)
 library(scales)
 library(rlang)
 
-source("R/parse_arguments.R")
-
+source("R/parse_arguments.R", encoding = 'UTF-8')
 
 ## ---- CONSTANTS: -------------------------------------------------------------
 
