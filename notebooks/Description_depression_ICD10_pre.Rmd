@@ -65,7 +65,7 @@ Information from the CIDI depression module was used for the creation of the dep
 ```{stata load-data}
 
 * Cohorte 2019, linea base:
-use "~/UAM/marta.miret@uam.es - Bases de datos maestras Edad con Salud/Ola_3/Cohorte_2019/history/snapshot_2022-01-12_prelockdown.dta"
+use "~/UAM/Marta Miret Garcia - Bases de datos maestras Edad con Salud/Ola_3/Cohorte_2019/history/snapshot_2022-01-12_prelockdown.dta"
 
 ```
 
