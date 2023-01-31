@@ -1318,14 +1318,14 @@ depr_resilience_post_decr <- (depr_resilience_post_coef %>% exp() - 1) %>%
 
 depression_coefficients <- depression_coefficients %>%
   mutate(
-    OR         = exp(estimate) %>% number(1e-2),
-    ci.inf     = exp(estimate - std.error * CI_FACTOR),
-    ci.sup     = exp(estimate + std.error * CI_FACTOR),
-    `(95% CI)` = format_ci(ci.inf, ci.sup, sig = 2, quoting = "("),
-    `*p* value`  = p.value   %>% format_pvalues(),
-    sig        = p.value %>% is_less_than(SIG_LEVEL / (n() - 1)) %>%
-      if_else("*", ""), # -1 to omit intercept
-    statistic = statistic %>% number(1e-2),
+    OR          = exp(estimate) %>% number(1e-2),
+    ci.inf      = exp(estimate - std.error * CI_FACTOR),
+    ci.sup      = exp(estimate + std.error * CI_FACTOR),
+    `(95% CI)`  = format_ci(ci.inf, ci.sup, sig = 2, quoting = "("),
+    `*p* value` = p.value   %>% format_pvalues(),
+    # TODO: -1 to omit intercept
+    sig         = (p.value < (SIG_LEVEL / (n() - 1))) %>% if_else("*", ""),
+    statistic   = statistic %>% number(1e-2),
     across(where(is.numeric), number, 1e-3)
   ) %>%
   format_term_label(
@@ -1619,7 +1619,7 @@ suicidal_coefficients <- suicidal_coefficients %>%
     ci.sup     = exp(estimate + std.error * CI_FACTOR),
     `(95% CI)` = format_ci(ci.inf, ci.sup, sig = 2, quoting = "("),
     `*p* value`  = p.value   %>% format_pvalues(),
-    sig        = p.value %>% is_less_than(SIG_LEVEL / (n() - 1)) %>%
+    sig        = p.value %>% magrittr::is_less_than(SIG_LEVEL / (n() - 1)) %>%
       if_else("*", ""), # -1 to omit intercept
     statistic = statistic %>% number(1e-2),
     across(where(is.numeric), number, 1e-3)
