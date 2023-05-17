@@ -313,16 +313,10 @@ for the sample included in the analysis are shown in Table 1.
 ```{r depression-prevalence-estimates}
 ```
 
-```{r depression-association-population}
-```
-
 ```{r suicidal-dataset}
 ```
 
 ```{r suicidal-prevalence-estimates}
-```
-
-```{r suicidal-association-population}
 ```
 
 ```{r prevalence-estimates-collapsed}
