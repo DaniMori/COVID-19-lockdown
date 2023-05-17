@@ -145,7 +145,8 @@ The following general principles have been followed when possible:
 
 ```{stata load-data}
 * Cohorte 2019, ola postconfinamiento:
-use "~\UAM\Marta Miret Garcia - Bases de datos maestras Edad con Salud\Subestudio_COVID\Antiguas\Edad_con_salud_Fichero_Completo.dta"
+*use "~\UAM\Marta Miret Garcia - Bases de datos maestras Edad con Salud\Subestudio_COVID\Antiguas\snapshot_2022-03-10_12-50.dta"
+use "~\UAM\Marta Miret Garcia - Bases de datos maestras Edad con Salud\Subestudio_COVID\Edad_con_salud_Fichero_Completo.dta"
 ```
 
 ```{stata generate-outcomes, echo=TRUE}
