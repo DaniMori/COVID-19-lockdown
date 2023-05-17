@@ -16,6 +16,7 @@
 
 ## ----includes----
 library(tidyverse)
+library(ecs.data)
 library(magrittr)
 library(haven)
 library(psych)
@@ -26,26 +27,16 @@ source("R/Output.R",        encoding = 'UTF-8')
 ## ----constants----
 
 # File system:
-BASE_DIR <- "~/../UAM"
-DB_PATH_MAIN <- file.path(
-  BASE_DIR,
-  "marta.miret@uam.es - Bases de datos maestras Edad con Salud"
-)
+DB_PATH_MAIN <- read_ecs_folder("DB")
 DB_PRE_DIR <- file.path(
   DB_PATH_MAIN,
-  "Ola_3/Cohorte_2019/Submuestra_1_preconfinamiento"
+  "Ola_3/Cohorte_2019"
 )
 DB_POST_DIR <- file.path(DB_PATH_MAIN, "Subestudio_COVID")
 
 # Source datasets:
-DB_PRE_PATH <- file.path(
-  DB_PRE_DIR,
-  "Edad con Salud ola 3_cohorte 2019_base completa_Stata14.dta"
-)
-DB_POST_PATH <- file.path(
-  DB_POST_DIR,
-  "Edad_con_salud_Fichero_Completo.dta"
-)
+DB_PRE_PATH  <- file.path(DB_PRE_DIR, "rawdata_c2019w1.dta")
+DB_POST_PATH <- file.path(DB_POST_DIR, "Edad_con_salud_Fichero_Completo.dta")
 
 
 # Variable definitions
@@ -106,7 +97,7 @@ ITEMS_WITH_MISSING_POST <- c(SOCIAL_SUPPORT_POST_ITEMS, DISABILITY_POST_ITEMS)
 
 ## ----load-data----
 
-dataset_pre  <- DB_PRE_PATH  %>% read_dta()
+dataset_pre  <- DB_PRE_PATH  %>% read_dta() |> filter(subsample_pre == 1)
 dataset_post <- DB_POST_PATH %>% read_dta()
 
 
@@ -140,6 +131,8 @@ dataset_post <- dataset_post %>% mutate(
   # Missing values:
   across(all_of(ITEMS_WITH_MISSING_POST), na_if, 8),
   across(all_of(ITEMS_WITH_MISSING_POST), na_if, 9),
+  across(all_of(ITEMS_WITH_MISSING_POST), na_if, 888),
+  across(all_of(ITEMS_WITH_MISSING_POST), na_if, 999),
 
   # Recode response categories in disability:
   across(all_of(DISABILITY_RECODE_POST), as.numeric),

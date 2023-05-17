@@ -702,27 +702,20 @@ estimate_prevalence <- function(.data, var, weights, cat = "Yes") {
   var     <- enquo(var)
   weights <- enquo(weights)
   
-  .data <- .data %>% drop_na(!!var) %>% mutate(wts = !!weights / sum(!!weights))
-  
-  result <- .data %>%
-    count(., Pos = (!!var == cat), wt = wts, name = "Prevalence") %>%
-    filter(Pos) %>%
-    select(-Pos)
-  
-  result2 <- .data %>% summarize(sum_sqwt = sum(wts^2), N = n())
+  .data <- .data |>
+    drop_na(!!var) |>
+    mutate(
+      wts = !!weights / sum(!!weights),
+      var = !!var == cat
+    )
 
-  result <- if (.data %>% group_vars() %>% is_empty()) {
-    
-    result %>% bind_cols(result2)
-    
-  } else {
-    
-    result %>% full_join(result2, by = .data %>% group_vars())
-  }
+  .data |>
+    summarize(
+      Prevalence = weighted.mean(var, w = wts),
+      N          = n(),
+      Std_err    = sqrt(sum((var - Prevalence)^2 * wts^2) * N / (N - 1))
+    )
   
-  result %>%
-    mutate(Std_err = sqrt(Prevalence * (1 - Prevalence) * sum_sqwt)) %>%
-    select(-sum_sqwt)
       ## FIXME: Normalizing transform
       # CI_inf  = Prevalence - CI_FACTOR * Std_err,
       # CI_sup  = Prevalence + CI_FACTOR * Std_err

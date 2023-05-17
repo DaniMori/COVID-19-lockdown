@@ -1,0 +1,435 @@
+---
+title: "Edad con Salud -- cohort 2019 -- Wave 1 -- 'DEPRESION ICD-10'" 
+output:
+  word_document:
+    reference_docx: !expr ecs.data::get_pkg_docx_template()
+csl: "`r ecs.data::get_proj_csl_file()`"
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+# Activar los paquetes que R necesita para ejecutar el código:
+
+library(Statamarkdown)
+
+# Ruta al ejecutable de Stata (Ejecuta `sysdir` en Stata para encontrar la ruta)
+
+# Opciones de configuración de las salidas de R y Stata:
+
+knitr::opts_chunk$set( # Para todos los 'chunks' de código:
+echo        = FALSE, #   - No muestra la sintaxis en el documento
+results     = 'hide',#   - Omite los resultados de ejecutar la sintaxis
+cleanlog    = TRUE,  #   - Omite repetir sintaxis en resultados de Stata
+collectcode = TRUE   #   - Reutiliza el código de Stata de 'chunks' anteriores
+)
+```
+
+# Variable information
+
++---------------------------+-----------------------------------------------------------------------------+------------+---------------------------------+
+| **Main variable name**    | **Label**                                                                   | **Format** | **Code**                        |
++:==========================+:============================================================================+============+=================================+
+| depression_lifetime       | Lifetime depression (c2019_w1)                                              | Binary     | 0=no;1=yes                      |
++---------------------------+-----------------------------------------------------------------------------+------------+---------------------------------+
+| d_lifetime_severity       | Severity of lifetime depressive episode (c2019_w1)                          | Ordinal    | 0=No;1=Mild;2=Moderate;3=Severe |
++---------------------------+-----------------------------------------------------------------------------+------------+---------------------------------+
+| depression_12m            | 12 month depression (c2019_w1)                                              | Binary     | 0=no;1=yes                      |
++---------------------------+-----------------------------------------------------------------------------+------------+---------------------------------+
+| depression_symptoms12m    | 12 month depression from lifetime diagnosis + q4227/q4227a items (c2019_w1) | Binary     | 0=no;1=yes                      |
++---------------------------+-----------------------------------------------------------------------------+------------+---------------------------------+
+| d_12m_item                | 12 month depression one item (c2019_w1)                                     | Binary     | 0=no;1=yes                      |
++---------------------------+-----------------------------------------------------------------------------+------------+---------------------------------+
+| d_12m_comparable          | 12 month depression comparable with COVID substudy (c2019_w1)               | 0=no;1=yes | 0=no;1=yes                      |
++---------------------------+-----------------------------------------------------------------------------+------------+---------------------------------+
+| depression_symptoms12m    | 12 month depression symptomatology (c2019_w1)                               | Binary     | 0=no;1=yes                      |
++---------------------------+-----------------------------------------------------------------------------+------------+---------------------------------+
+| d_12m_severity            | Severity of 12 month depressive episode (c2019_w1)                          | Ordinal    | 0=No;1=Mild;2=Moderate;3=Severe |
++---------------------------+-----------------------------------------------------------------------------+------------+---------------------------------+
+| d_12m_severity_comparable | Severity of 12 month depressive episode comparable (c2019_w1)               | Ordinal    | 0=No;1=Mild;2=Moderate;3=Severe |
++---------------------------+-----------------------------------------------------------------------------+------------+---------------------------------+
+| d_symptoms12m_comparable  | 12 month depression comparable with COVID substudy (c2019_w1)               | Binary     | 0=no;1=yes                      |
++---------------------------+-----------------------------------------------------------------------------+------------+---------------------------------+
+
+# Variable description
+
+Depression has become a major public health issue as it is one of the main causes of disability worldwide, with an even greater impact on developed countries. According to The ICD-10 Classification of Mental and Behavioural Disorders, Diagnostic criteria for research (World Health Organization, 1993), the main characteristics of depression are the presence of a sustained depressed mood, the loss of interest or pleasure in activities normally pleasurable and/or the decreased energy or increased fatigability. In addition to these main criteria, the ICD-10 Diagnostic criteria for research proposes several contributing factors that can be present or absent: loss of confidence and self-esteem, feelings of self-reproach or guilt, recurrent thoughts of death or suicide, diminished ability to think or concentrate, change in psychomotor activity, sleep disturbance, and changes in appetite with the corresponding weight change. Moreover, the classification proposes a three-level gradient of severity depending on the amount of criteria present in each case, from mild to severe. In order to address these criteria and be able to assess the lifetime presence or absence of a depressive episode, as well as its severity, we used an adapted version of the Composite International Diagnostic Interview (CIDI 3.0), a comprehensive, fully-structured interview designed to be used by trained lay interviewers for the assessment of mental disorders according to the definitions and criteria of ICD-10. It is intended for use in epidemiological and cross-cultural studies, as well as for clinical and research purposes.
+
+# Explanation of how the variables were created
+
+Information from the CIDI depression module was used for the creation of the depression variables. Algorithms based on the ICD-10 were used for the endorsement of depressive episode at some point in their lives (lifetime prevalence; variable depression_lifetime) and in the previous 12 months (point prevalence; variable depression_12m). More precisely, the following criteria should be fulfilled: i) The depressive episode should last for at least 2 weeks; ii) There have been no hypomanic or manic symptoms sufficient to meet the criteria for hypomanic or manic episode at any time in the individual's life; iii) The episode is not attributable to psychoactive substance use or to any organic mental disorder; iv) The general criteria for depressive episode must be met; v) At least two of the following three symptoms must be present: Depressed mood, loss of interest and decreased energy; vi) an additional symptom or symptoms should be present, to give a total of at least four (please see criteria C1-C7). We also included a severity variable according to the ICD-10 criteria for both lifetime prevalence (variable d_lifetime_severity) and 12 months prevalence (variable d_12m_severity), based upon the number of symptoms the participant met. An additional variable on 12 month depression symptomatology (variable depression_symptoms12m) was also created, where only v and vi were considered.
+
+# Syntax used to create the variable (Stata 13)
+
+```{stata load-data}
+
+* Cohorte 2019, linea base:
+use "~/UAM/Marta Miret Garcia - Bases de datos maestras Edad con Salud/Ola_3/Cohorte_2019/history/snapshot_2022-01-12_prelockdown.dta"
+
+```
+
+```{stata generate-outcomes, echo=TRUE}
+
+*Previous recoding of the symptomatology questions
+recode q4220a-q4222v (1=1) (2=0) (888 999=.) 
+
+***Depressive episode (F32)
+
+*G1 criterion: "The depressive episode should last for at least 2 weeks"
+gen d_crit_g1 = .
+replace d_crit_g1 = 0 if q4211!=1 & q4213!=1
+replace d_crit_g1 = 1 if q4211==1 | q4213==1
+label variable d_crit_g1 "G1 criterion for depression"
+
+*G2 criterion: "There have been no hypomanic or manic symptoms sufficient to meet the criteria for hypomanic or manic episode at any time in the individual's life"
+gen d_crit_g2 = 1
+replace d_crit_g2 = 0 if q4233==1 | q4225_causemed2==1 
+label variable d_crit_g2 "G2 criterion for depression"
+
+*G3 criterion: "The episode is not attributable to psychoactive substance use or to any organic mental disorder"
+gen d_crit_g3 = 0
+replace d_crit_g3 = 1 if (q4224a!=1 | q4224b!=1) | (q4224==1 & q4225_causemed12!=1 & q4225_causemed23!=1 & q4225_causemed24!=1 & q4225_causemed25!=1 & q4225_causemed30!=1 & q4225_causemed31!=1)
+replace d_crit_g3 = . if q4224a==. & q4224b==. & q4224==. & q4225_causemed12==. & q4225_causemed23==. & q4225_causemed24==. & q4225_causemed25==. & q4225_causemed30==. & q4225_causemed31==.
+label variable d_crit_g3 "G3 criterion for depression" 
+
+***Mild depressive episode (F32.0)
+
+*A criterion: "The general criteria for depressive episode must be met"
+gen d_crit_a = .
+replace d_crit_a = 0 if d_crit_g1!=1 | d_crit_g2!=1 | d_crit_g3!=1
+replace d_crit_a = 1 if d_crit_g1==1 & d_crit_g2==1 & d_crit_g3==1
+label variable d_crit_a "A criterion for depression"
+
+*B criterion: "At least two of the following three symptoms must be present"
+
+*B1: "Depressed mood to a degree that is definitely abnormal for the individual, present for most of the day and almost every day, largely uninfluenced by circumstances, and sustained for at least 2 weeks"
+gen d_b1 = 0
+replace d_b1 = 1 if q4220a==1 | q4220b==1 | q4220c==1 | q4220d==1
+replace d_b1 = . if q4220a==. & q4220b==. & q4220c==. & q4220d==.
+label variable d_b1 "B1 criterion for depression"
+
+*B2: "Loss of interest or pleasure in activities that are normally pleasurable"
+gen d_b2 = 0
+replace d_b2 = 1 if q4220e==1 | q4220f==1
+replace d_b2 = . if q4220e==. & q4220f==.
+label variable d_b2 "B2 criterion for depression"
+
+*B3: "Decreased energy or increased fatigability"
+gen d_b3 = 0
+replace d_b3 = 1 if q4222e==1
+replace d_b3 = . if q4222e==.
+label variable d_b3 "B3 criterion for depression"
+
+*Sum of depressive screening symptoms
+egen d_screentotal = rowtotal (d_b1-d_b3)
+label variable d_screentotal "Screening symptoms for depression"
+
+*To fulfil B criterion >=2 screening symptoms should be present.
+gen d_crit_b = .
+replace d_crit_b = 0 if d_screentotal<2
+replace d_crit_b = 1 if d_screentotal>=2 
+label variable d_crit_b "B criterion for depression"
+
+*C criterion: "An additional symptom or symptoms from the following list should be present, to give a total of at least four"
+
+*C1: "Loss of confidence and self-esteem"
+gen d_c1 = 0
+replace d_c1 = 1 if q4222k==1 | q4222l==1 | q4222m==1
+replace d_c1 = . if q4222k==. & q4222l==. & q4222m==.
+label variable d_c1 "C1 criterion for depression"
+
+*C2: "Unreasonable feelings of self-reproach or excessive and inappropriate guilt"
+gen d_c2 = 0
+replace d_c2 = 1 if q4222n==1
+replace d_c2 = . if q4222n==.
+label variable d_c2 "C2 criterion for depression"
+
+*C3: "Recurrent thoughts of death or suicide, or any suicidal behaviour"
+gen d_c3 = 0
+replace d_c3 = 1 if q4222r==1 | q4222s==1 | q4222t==1 | q4222u==1 | q4222v==1
+replace d_c3 = 1 if q4222r==. & q4222s==. & q4222t==. & q4222u==. & q4222v==.
+label variable d_c3 "C3 criterion for depression"
+
+*C4: "Complaints or evidence of diminished ability to think or concentrate, such as indecisiveness or vacillation"
+gen d_c4 = 0
+replace d_c4 = 1 if q4222h==1 | q4222i==1 | q4222j==1
+replace d_c4 = . if q4222h==. & q4222i==. & q4222j==.
+label variable d_c4 "C4 criterion for depression"
+
+*C5: "Change in psychomotor activity, with agitation or retardation (either subjective or objective)"
+gen d_c5 = 0
+replace d_c5 = 1 if (q4222f==1 | q4222fa==1) | (q4222g==1 | q4222ga==1)
+replace d_c5 = . if q4222f==. & q4222fa==. & q4222g==. & q4222ga==.
+label variable d_c5 "C5 criterion for depression"
+
+*C6: "Sleep disturbance of any type"
+gen d_c6 = 0
+replace d_c6 = 1 if q4222c==1 | q4222d==1
+replace d_c6 = . if q4222c==. & q4222d==.
+label variable d_c6 "C6 criterion for depression"
+
+*C7: "Change in appetite (decrease or increase) with corresponding weight change"
+gen d_c7 = 0
+replace d_c7 = 1 if q4222a==1 & q4222b==1
+replace d_c7 = . if q4222a==. & q4222b==.
+label variable d_c7 "C7 criterion for depression"
+
+*Sum of depressive symptoms
+egen d_symtotal = rowtotal (d_c1-d_c7)
+label variable d_symtotal "Symptoms for depression"
+
+*Have the person skipped the lifetime depression module?
+egen serie_symp = rowtotal (q4220a-q4222v)
+gen d_skipped = 0
+recode q4202 q4211 q4213 q4218 (1=1) (.=.) (else=0)
+replace d_skipped = 1 if q4202==0 | q4211==0 | q4213==0 | (q4214==1 & q4215==4 & q4216==4) | q4218==0 | (q4220a!=1 & q4220b!=1 & q4220c!=1 & q4220d!=1 & q4220e!=1 & q4220f!=1) | serie_symp<2
+
+***Severity of depressive episode
+
+*To meet the criteria for "Mild depressive episode (F32.0)", at least two of the screening symptoms (B1-B3) must be present, and an additional symptom or symptoms from the rest of them (B1-C7) should be present to give a total of at least four. In the case of "Moderate depressive episode (F32.1)", there must be at least two screening symptoms and a total of at least six symptoms. In the case of "Severe depressive episode (F32.3)", the three screening symptoms (B1-B3) must be present, and additional symptoms (C1-C7) should be present to give a total of at least eight.
+gen d_lifetime_severity = .
+replace d_lifetime_severity = 0 if d_crit_a==0 | d_crit_b==0 | (d_screentotal==2 & d_symtotal<2) | (d_screentotal==3 & d_symtotal==0)
+replace d_lifetime_severity = 1 if d_crit_a==1 & ((d_screentotal==2 & d_symtotal>=2) | (d_screentotal==3 & d_symtotal>=1))
+replace d_lifetime_severity = 2 if d_crit_a==1 & ((d_screentotal==2 & d_symtotal>=4) | (d_screentotal==3 & d_symtotal>=3))
+replace d_lifetime_severity = 3 if d_crit_a==1 & (d_screentotal==3 & d_symtotal>=5)
+label variable d_lifetime_severity "Severity of lifetime depressive episode (c2019_w1)"
+label define severity 0 "No" 1 "Mild" 2 "Moderate" 3 "Severe"
+label values d_lifetime_severity severity
+
+***Lifetime depression prevalence
+gen depression_lifetime = .
+replace depression_lifetime = 1 if d_lifetime_severity >=1 
+replace depression_lifetime = 0 if proxy==2 & (d_lifetime_severity ==0 | d_skipped==1)
+label define yesno 0 "No" 1 "Yes"
+label values depression_lifetime yesno
+label variable depression_lifetime "Lifetime depression (c2019_w1)"
+
+*** Lifetime depression prevalence for proxy participants
+recode P4040 (1=1) (2=0) (888=.) (999=.), gen (depression_lifetime_proxy)
+label values depression_lifetime_proxy yesno
+label variable depression_lifetime_proxy "Lifetime depression for proxy (c2019_w1)"
+
+*** 12 month depression
+
+* 12 month depression from lifetime diagnosis + q4227/q4227a items
+
+gen depression_12m = .
+replace depression_12m = 0 if depression_lifetime==0 | (depression_lifetime==1 & (q4227!=1 | q4227a!=1))
+replace depression_12m = 1 if depression_lifetime==1 & (q4227==1 | q4227a==1)
+label variable depression_12m "12 month depression from lifetime diagnosis + q4227/q4227a items (c2019_w1)"
+label values depression_12m yesno
+
+* 12 month depression from q4227/q4227a items
+
+gen d_12m_item = .
+replace d_12m_item = 1 if q4227==1 | q4227a==1
+replace d_12m_item = 0 if proxy==2 & (q4227!=1 | q4227a!=1)
+label values d_12m_item yesno
+label variable d_12m_item "12 month depression one item (c2019_w1)"
+
+* 12 months depression comparable with COVID substudy from lifetime diagnosis
+
+gen d_lifetime_severity_comparable = .
+replace d_lifetime_severity_comparable = 0 if d_crit_g1==0 | d_crit_b==0 | (d_screentotal==2 & d_symtotal<2) | (d_screentotal==3 & d_symtotal==0)
+replace d_lifetime_severity_comparable = 1 if d_crit_g1==1 & ((d_screentotal==2 & d_symtotal>=2) | (d_screentotal==3 & d_symtotal>=1))
+replace d_lifetime_severity_comparable = 2 if d_crit_g1==1 & ((d_screentotal==2 & d_symtotal>=4) | (d_screentotal==3 & d_symtotal>=3))
+replace d_lifetime_severity_comparable = 3 if d_crit_g1==1 & (d_screentotal==3 & d_symtotal>=5)
+label variable d_lifetime_severity_comparable "Severity of lifetime depressive episode comparable (c2019_w1)"
+label values d_lifetime_severity_comparable severity
+
+gen d_12m_comparable = .
+replace d_12m_comparable = 1 if d_lifetime_severity_comparable>=1 & (q4227==1 | q4227a==1)
+replace d_12m_comparable = 0 if proxy==2 & (d_lifetime_severity_comparable ==0 | d_skipped==1) | (d_lifetime_severity_comparable>=1 & (q4227!=1 | q4227a!=1))
+label variable d_12m_comparable "12 month depression comparable with COVID substudy (c2019_w1)"
+label values d_12m_comparable yesno
+
+***Symptoms recent depression (previous 12 months)
+*Previous recoding of the symptomatology questions
+recode q4300a-q4302v (1=1) (888 999=.) (2=0)
+
+***Depressive episode (F32)
+
+*G1 criterion: "The depressive episode should last for at least 2 weeks"
+gen d_crit_g1_12m = .
+replace d_crit_g1_12m = 0 if q4211!=1 | q4213!=1
+replace d_crit_g1_12m = 1 if q4211==1 | q4213==1
+label variable d_crit_g1_12m "G1 criterion for depression 12m"
+
+*G2 criterion: "There have been no hypomanic or manic symptoms sufficient to meet the criteria for hypomanic or manic episode at any time in the individual's life"
+gen d_crit_g2_12m = 1
+replace d_crit_g2_12m = 0 if q4233==1 | q4702_causemed2==1
+label variable d_crit_g2_12m "G2 criterion for depression 12m"
+
+*G3 criterion: "The episode is not attributable to psychoactive substance use or to any organic mental disorder"
+gen d_crit_g3_12m = 0
+replace d_crit_g3_12m = 1 if (q4701a!=1 | q4701b!=1) | (q4701==1 & q4702_causemed12!=1 & q4702_causemed23!=1 & q4702_causemed24!=1 & q4702_causemed25!=1 & q4702_causemed30!=1 & q4702_causemed31!=1)
+replace d_crit_g3_12m = . if q4701a==. & q4701b==. & q4701==. & q4702_causemed12==. & q4702_causemed23==. & q4702_causemed24==. & q4702_causemed25==. & q4702_causemed30==. & q4702_causemed31==.
+label variable d_crit_g3_12m "G3 criterion for depression 12m"
+
+***Mild depressive episode (F32.0)
+
+*A criterion: "The general criteria for depressive episode must be met"
+gen d_crit_a_12m = .
+replace d_crit_a_12m = 0 if d_crit_g1_12m!=1 | d_crit_g2_12m!=1 | d_crit_g3_12m!=1
+replace d_crit_a_12m = 1 if d_crit_g1_12m==1 & d_crit_g2_12m==1 & d_crit_g3_12m==1
+label variable d_crit_a_12m "A criterion for depression 12m"
+
+*B criterion: "At least two of the following three symptoms must be present"
+
+*B1: "Depressed mood to a degree that is definitely abnormal for the individual, present for most of the day and almost every day, largely uninfluenced by circumstances, and sustained for at least 2 weeks".
+gen d_b1_12m = 0
+replace d_b1_12m = 1 if q4300a==1 | q4300b==1 | q4300c==1 | q4300d==1
+replace d_b1_12m = . if q4300a==. & q4300b==. & q4300c==. & q4300d==.
+label variable d_b1_12m "B1 criterion for depression 12m"
+
+*B2: "Loss of interest or pleasure in activities that are normally pleasurable"
+gen d_b2_12m = 0
+replace d_b2_12m = 1 if q4300e==1 | q4300f==1
+replace d_b2_12m = . if q4300e==. & q4300f==.
+label variable d_b2_12m "B2 criterion for depression 12m"
+
+*B3: "Decreased energy or increased fatigability"
+gen d_b3_12m = 0
+replace d_b3_12m = 1 if q4302e==1
+replace d_b3_12m = . if q4302e==.
+label variable d_b3_12m "B3 criterion for depression 12m"
+
+*Sum of depressive screening symptoms
+egen d_screentotal_12m = rowtotal (d_b1_12m-d_b3_12m)
+label variable d_screentotal_12m "Screening symptoms for depression 12m"
+
+*To fulfil B criterion >=2 screening symptoms should be present.
+gen d_crit_b_12m = .
+replace d_crit_b_12m = 0 if d_screentotal_12m<2
+replace d_crit_b_12m = 1 if d_screentotal_12m>=2
+label variable d_crit_b_12m "B criterion for depression 12m"
+
+*C criterion: "An additional symptom or symptoms from the following list should be present, to give a total of at least four"
+
+*C1: "Loss of confidence and self-esteem"
+gen d_c1_12m = 0
+replace d_c1_12m = 1 if q4302k==1 | q4302l==1 | q4302m==1
+replace d_c1_12m = . if q4302k==. & q4302l==. & q4302m==.
+label variable d_c1_12m "C1 criterion for depression 12m"
+
+*C2: "Unreasonable feelings of self-reproach or excessive and inappropriate guilt"
+gen d_c2_12m = 0
+replace d_c2_12m = 1 if q4302n==1
+replace d_c2_12m = . if q4302n==.
+label variable d_c2_12m "C2 criterion for depression 12m"
+
+*C3: "Recurrent thoughts of death or suicide, or any suicidal behaviour"
+gen d_c3_12m = 0
+replace d_c3_12m = 1 if q4302r==1 | q4302s==1 | q4302t==1 | q4302u==1 | q4302v==1
+replace d_c3_12m = 1 if q4302r==. & q4302s==. & q4302t==. & q4302u==. & q4302v==.
+label variable d_c3_12m "C3 criterion for depression 12m"
+
+*C4: "Complaints or evidence of diminished ability to think or concentrate, such as indecisiveness or vacillation"
+gen d_c4_12m = 0
+replace d_c4_12m = 1 if q4302h==1 | q4302i==1 | q4302j==1
+replace d_c4_12m = . if q4302h==. & q4302i==. & q4302j==.
+label variable d_c4_12m "C4 criterion for depression 12m"
+
+*C5: "Change in psychomotor activity, with agitation or retardation (either subjective or objective)"
+gen d_c5_12m = 0
+replace d_c5_12m = 1 if (q4302f==1 | q4302fa==1) | (q4302g==1 | q4302ga==1)
+replace d_c5_12m = . if q4302f==. & q4302fa==. & q4302g==. & q4302ga==.
+label variable d_c5_12m "C5 criterion for depression 12m"
+
+*C6: "Sleep disturbance of any type"
+gen d_c6_12m = 0
+replace d_c6_12m = 1 if q4302c==1 | q4302d==1
+replace d_c6_12m = . if q4302c==. & q4302d==.
+label variable d_c6_12m "C6 criterion for depression 12m"
+
+*C7: "Change in appetite (decrease or increase) with corresponding weight change"
+gen d_c7_12m = 0
+replace d_c7_12m = 1 if q4302a==1 & q4302b==1
+replace d_c7_12m = . if q4302a==. & q4302b==.
+label variable d_c7_12m "C7 criterion for depression 12m"
+
+*Sum of depressive symptoms
+egen d_symtotal_12m = rowtotal (d_c1_12m-d_c7_12m)
+label variable d_symtotal_12m "Symptoms for depression 12m"
+
+*Have the person skipped the recent depression module?
+egen serie_symp_12m = rowtotal (q4300a-q4302v)
+gen d_skipped_12m = 0
+replace d_skipped_12m = 1 if (q4300a!=1 & q4300b!=1 & q4300c!=1 & q4300d!=1 & q4300e!=1 & q4300f!=1) | serie_symp_12m<2
+
+***Severity of depressive episode
+
+*To meet the criteria for "Mild depressive episode (F32.0)", at least two of the screening symptoms (B1-B3) must be present, and an additional symptom or symptoms from the rest of them (B1-C7) should be present to give a total of at least four. In the case of "Moderate depressive episode (F32.1)", there must be at least two screening symptoms and a total of at least six symptoms. In the case of "Severe depressive episode (F32.3)", the three screening symptoms (B1-B3) must be present, and additional symptoms (C1-C7) should be present to give a total of at least eight.
+gen d_12m_severity = .
+replace d_12m_severity = 0 if d_crit_a_12m==0 | d_crit_b_12m==0 | (d_screentotal_12m==2 & d_symtotal_12m<2) | (d_screentotal_12m==3 & d_symtotal_12m==0)
+replace d_12m_severity = 1 if d_crit_a_12m==1 & ((d_screentotal_12m==2 & d_symtotal_12m>=2) | (d_screentotal_12m==3 & d_symtotal_12m>=1))
+replace d_12m_severity = 2 if d_crit_a_12m==1 & ((d_screentotal_12m==2 & d_symtotal_12m>=4) | (d_screentotal_12m==3 & d_symtotal_12m>=3))
+replace d_12m_severity = 3 if d_crit_a_12m==1 & (d_screentotal_12m==3 & d_symtotal_12m>=5)
+label variable d_12m_severity "Severity of 12 month depressive episode (c2019_w1)"
+label values d_12m_severity severity
+
+***12 month depression symptomatology 
+gen depression_symptoms12m = .
+replace depression_symptoms12m = 1 if d_12m_severity >=1
+replace depression_symptoms12m = 0 if proxy==2 & (d_12m_severity ==0 | d_skipped_12m==1)
+label values depression_symptoms12m yesno
+label variable depression_symptoms12m "12 month depression symptomatology (c2019_w1)"
+
+* 12 months depression comparable with COVID substudy from 12 month diagnosis
+
+gen d_12m_severity_comparable = .
+replace d_12m_severity_comparable = 0 if d_crit_g1_12m==0 | d_crit_b_12m==0 | (d_screentotal_12m==2 & d_symtotal_12m<2) | (d_screentotal_12m==3 & d_symtotal_12m==0)
+replace d_12m_severity_comparable = 1 if d_crit_g1_12m==1 & ((d_screentotal_12m==2 & d_symtotal_12m>=2) | (d_screentotal_12m==3 & d_symtotal_12m>=1))
+replace d_12m_severity_comparable = 2 if d_crit_g1_12m==1 & ((d_screentotal_12m==2 & d_symtotal_12m>=4) | (d_screentotal_12m==3 & d_symtotal_12m>=3))
+replace d_12m_severity_comparable = 3 if d_crit_g1_12m==1 & (d_screentotal_12m==3 & d_symtotal_12m>=5)
+label variable d_12m_severity_comparable "Severity of 12 month depressive episode comparable (c2019_w1)"
+label values d_12m_severity_comparable severity
+
+gen d_symptoms12m_comparable = .
+replace d_symptoms12m_comparable = 1 if d_12m_severity_comparable>=1 
+replace d_symptoms12m_comparable = 0 if proxy==2 & (d_12m_severity_comparable ==0 | d_skipped_12m==1) 
+label variable d_symptoms12m_comparable "12 month depression comparable with COVID substudy (c2019_w1)"
+label values d_symptoms12m_comparable yesno
+
+```
+
+```{stata descriptives, collectcode=FALSE, results='markup', echo=TRUE}
+
+codebook depression_lifetime depression_lifetime_proxy depression_12m d_12m_item d_12m_comparable depression_symptoms12m d_symptoms12m_comparable
+
+```
+
+```{stata save-data}
+keep ID_ECS q0002_hhid number_id q0007a_result proxy depression_lifetime d_lifetime_severity depression_lifetime_proxy depression_12m depression_12m d_12m_item d_12m_comparable depression_symptoms12m d_12m_severity d_12m_severity_comparable d_symptoms12m_comparable 
+
+*Cohorte 2019, linea base:
+
+saveold "../dat/Outcome_depression_ICD10_pre.dta", replace version(13)
+
+```
+
+# Contact person:
+
+-   Name: Elvira Lara
+-   e-mail: [elvira.lara\@uam.es](mailto:elvira.lara@uam.es){.email}
+-   Phone number: (+34) 914974601
+
+<br>
+
+Original version:
+
+-   Name: Dario Moreno Agostino 
+-   e-mail: [d.moreno@ucl.ac.uk](mailto:d.moreno@ucl.ac.uk){.email}
+
+# References
+
+:::{#refs}
+World Health Organization. (1993). The ICD-10 classification of mental and behavioural disorders: diagnostic criteria for research. Ed. World Health Organization: Geneva.
+:::
+
+# Session info
+
+```{r, results='markup'}
+devtools::session_info()
+```

@@ -18,6 +18,7 @@ ggplot2::theme_set(ggplot2::theme_minimal())
 ## ----includes----
 
 library(tidyverse)
+library(ecs.data)
 library(magrittr)
 library(haven)
 library(flextable)
@@ -40,6 +41,8 @@ library(survey)
 library(officer)
 library(ftExtra)
 library(effsize)
+library(xfun)
+library(rmarkdown)
 
 source("R/Data.R",          encoding = 'UTF-8')
 source("R/Output.R",        encoding = 'UTF-8')
@@ -61,14 +64,11 @@ PROJECT_NAME <- "Edad con Salud" %>% ftext(
 )
 
 # File system:
-BASE_DIR <- "~/../UAM"
-DOC_PATH_MASTER <- file.path(
-  BASE_DIR,
-  "marta.miret@uam.es - Documentacion Edad con Salud"
-)
-DB_PATH <- file.path(
+DOC_PATH_MASTER <- read_ecs_folder("DOC")
+DB_PATH         <- file.path(
   DOC_PATH_MASTER,
-  "Edad con salud - Subestudio COVID/BBDD_con_outcomes"
+  "Edad con salud - Subestudio COVID",
+  "BBDD_con_outcomes"
 )
 
 # Collapsed outcomes dataset:
@@ -165,6 +165,73 @@ max_missing_print <- MAX_MISSING %>% percent()
 
 ## ----load-data----
 dataset_outcomes <- OUTCOMES_DB_FILE %>% read_dta()
+
+## ---- compute-new-depr-vars ----
+DESCRIPTION_PRE_FILEPATH  <- "notebooks/Description_depression_ICD10_pre"
+DESCRIPTION_POST_FILEPATH <- "notebooks/Description_depression_ICD10_post"
+
+Rscript_call(
+  render,
+  list(input = DESCRIPTION_PRE_FILEPATH |> paste0(".Rmd"))
+)
+Rscript_call(
+  render,
+  list(input = DESCRIPTION_POST_FILEPATH |> paste0(".Rmd"))
+)
+
+# docx outputs are not necessary so they are deleted:
+file.remove(
+  c(DESCRIPTION_PRE_FILEPATH, DESCRIPTION_POST_FILEPATH) |> paste0(".docx")
+)
+
+depression_pre_new_dataset <- file.path(
+  "dat",
+  "Outcome_depression_ICD10_pre.dta"
+) |>
+  read_stata()
+depr_pre_new_vars_all_cases <- depression_pre_new_dataset |>
+  select(
+    q0002_hhid, number_id,
+    ends_with(c("lifetime", "12m", "comparable")),
+    -matches("severity")
+  )
+depr_pre_new_vars <- depr_pre_new_vars_all_cases |>
+  semi_join(dataset_outcomes, by = c("number_id", "q0002_hhid"))
+
+depression_post_new_dataset <- file.path(
+  "dat",
+  "Outcome_depression_ICD10_post.dta"
+) |>
+  read_stata()
+depr_post_new_vars <- depression_post_new_dataset |>
+  rename(number_id = IDENTIFICA1, q0002_hhid = IDENTIFICA2) |>
+  select(-ID_ECS) |>
+  semi_join(
+    dataset_outcomes,
+    by = c("number_id", "q0002_hhid")
+  )
+
+n_depr_pre_new_vars  <- depr_pre_new_vars  |> nrow()
+n_depr_post_new_vars <- depr_post_new_vars |> nrow() # También igual a 1103
+
+## ---- depr-pre-new-vars-corrected ----
+dataset_outcomes <- dataset_outcomes |>
+  select(
+    everything(),
+    -matches("depression"),
+    matches("severity") # "Depression severity" raise error if dropped
+  ) |>
+  full_join(
+    depr_pre_new_vars_all_cases |> select(
+      q0002_hhid, number_id,
+      depression_lifetime, depression_pre = d_12m_comparable
+    ),
+    by = c("number_id", "q0002_hhid")
+  ) |>
+  full_join(
+    depr_post_new_vars |>
+      select(q0002_hhid, number_id, depression_post = depression_30d),
+    by = c("number_id", "q0002_hhid"))
 
 ## ----compute-interview-dates----
 
@@ -341,7 +408,7 @@ var_descriptors <- dataset_outcomes %>%
     suicidal_pre, suicidal_post
   ) %>%
   map_chr(~attr(., "label") %||% NA_character_) |>
-  c(depression_lt = "Depression (lifetime)")
+  c(depression_lifetime = "Depression (lifetime)")
 
 var_descriptors[
   c(
@@ -528,13 +595,27 @@ ordinal_preds      <- dataset_predictors %>%
 
 ## ----var-descriptives----
 
-dataset_outcomes_descr <- dataset_outcomes %>% select(
+dataset_outcomes <- dataset_outcomes |>
+  mutate(
+    depression_lifetime  = depression_lifetime |>
+      as_factor() |>
+      set_attr("label", "Lifetime depression"),
+    depression_pre = depression_pre |>
+      as_factor() |>
+      set_attr("label", "Depression"),
+    depression_post = depression_post |>
+      as_factor() |>
+      set_attr("label", "Depression")
+  )
+
+dataset_outcomes_descr_correct <- dataset_outcomes %>% select(
   ID_CONTACTO,
-  depression_pre, depression_post, matches("^suicidal_(pre|post)$"),
+  depression_lifetime, depression_pre, depression_post,
+  matches("^suicidal_(pre|post)$"),
   all_of(all_preds)
 )
 
-quant_descriptives_out <- dataset_outcomes_descr %>%
+quant_descriptives_out <- dataset_outcomes_descr_correct %>%
   select(-ID_CONTACTO) %>%
   describe(skew = FALSE, omit = TRUE) %>%
   as.data.frame() %>%
@@ -547,11 +628,11 @@ quant_descriptives_out <- dataset_outcomes_descr %>%
   select(var, Variable, n, mean, sd) %>%
   mutate(across(where(is.double), number, 1e-2))
 
-cat_descriptives_out <- dataset_outcomes_descr %>%
+cat_descriptives_out <- dataset_outcomes_descr_correct %>%
   select(where(is.factor)) %>%
   frequencies_table(missing = FALSE)
 
-sample_contrast_vars <- dataset_outcomes_descr %>%
+sample_contrast_vars <- dataset_outcomes_descr_correct %>%
   select(ID_CONTACTO, ends_with(c("_pre", "post"))) %>%
   pivot_longer(
     -ID_CONTACTO,
@@ -576,7 +657,6 @@ sample_contrasts <- bind_rows(
   ) %>%
   select(labels_abbr, cat, p.value)
 
-
 quant_total_out <- quant_descriptives_out %>%
   mutate(
     var_cat = var_properties$labels_abbr[var],
@@ -599,7 +679,7 @@ cat_total_out <- cat_descriptives_out %>%
   mutate(
     var_cat = var_properties$labels_abbr[Variable],
     Measure = var_properties$var_measure[Variable],
-    stat1   = if_else(n() != 3 & Level == "Total", NA_real_, N),
+    stat1   = if_else(n() != 3 & Level == "Total", NA_integer_, N),
     stat2   = if_else(
       Level == "Total",
       NA_character_,
@@ -624,10 +704,10 @@ cat_total_out <- cat_descriptives_out %>%
   group_by(aux) %>%
   mutate(
     Level = Level %>% if_else(
-        condition = !. %in% c("Yes", "Total") & n() == 2,
-        true      = enclose(., "(") %>% paste0(", n (%)"),
-        false     = .
-      ),
+      condition = !. %in% c("Yes", "Total") & n() == 2,
+      true      = enclose(., "(") %>% paste0(", n (%)"),
+      false     = .
+    ),
     var_cat = if_else(
       Level %in% c("Yes", "Total"),
       var_cat %>% paste0(", n (%)"),
@@ -647,28 +727,29 @@ total_descriptives_out <- quant_total_out %>%
   bind_rows(cat_total_out) %>%
   slice( # Custom order:
     7,     # Age
-    10,    # Sex (Female)
-    11:15, # Education level (Less than primary, Primary, Secondary, Tertiary)
-    8,     # Depression
-    9,     # Suicidal ideation
+    11,    # Sex (Female)
+    12:16, # Education level (Less than primary, Primary, Secondary, Tertiary)
+    8,     # Depression lifetime
+    9,     # Depression
+    10,    # Suicidal ideation
     4,     # Resilience
-    22,    # Living alone
+    23,    # Living alone
     2,     # Social support
     1,     # Loneliness
-    20:21, # COVID-19 co-habitant, COVID-19 concern,
-    16:19, # COVID-19 severity (Not infected, Infected, Hospitalized)
+    21:22, # COVID-19 co-habitant, COVID-19 concern,
+    17:20, # COVID-19 severity (Not infected, Infected, Hospitalized)
     3,     # WHODAS
-    30:34, # Physical pain (None, Light, Moderate, Severe)
+    31:35, # Physical pain (None, Light, Moderate, Severe)
     5:6,   # Working screen time, Non-working screen time
-    27,    # Home quietness
-    28:29, # Economy worsened, Unemployed
-    23:26  # Physical activity (Low, Moderate, High)
+    28,    # Home quietness
+    29:30, # Economy worsened, Unemployed
+    24:27  # Physical activity (Low, Moderate, High)
   )
 
 cat_index <- total_descriptives_out %>% pull(is_cat)
 total_descriptives_out <- total_descriptives_out %>% select(-is_cat)
 
-extra_footnote  <- c(12, 13, 20)
+extra_footnote  <- c(13, 14, 21)
 
 total_descriptives_out <- total_descriptives_out %>%
   mutate(
@@ -705,7 +786,7 @@ total_descriptives_out <- total_descriptives_out %>%
           paste0('.')
       )
     ),
-    i           = c(10, 14:16),
+    i           = c(11, 15:17),
     j           = 1,
     ref_symbols = FOOTNOTE_SYMBOL[1:4]
   ) %>%
@@ -725,7 +806,6 @@ total_descriptives_out <- total_descriptives_out %>%
   padding(padding.top = 1, padding.bottom = 1) %>%
   border(border.bottom = fp_border(style = "none"), part = "footer") %>%
   autofit()
-
 
 ## ---- Prevalence: ----
 
@@ -952,6 +1032,15 @@ mcnemar_suic_test <- suicidal_prevalence_post %>%
   print_chisq_test()
 
 
+mcnemar_depr_test_men    <- depression_prevalence_post %>%
+  filter(Group == "Male") %>%
+  print_chisq_test()
+
+mcnemar_depr_test_women    <- depression_prevalence_post %>%
+  filter(Group == "Female") %>%
+  print_chisq_test()
+
+
 prevalences_young <- prevalence_tables %>%
   map(filter, Group == AGE_GROUPS[1]) %>%
   map(pull, Prevalence)
@@ -981,6 +1070,11 @@ mcnemar_depr_test_old    <- depression_prevalence_post %>%
 
 
 ## ---- Depression: ----
+
+## ----rename-depression-lifetime----
+dataset_outcomes <- dataset_outcomes |>
+  select(-depression_pre) |>
+  rename(depression_pre = depression_lifetime)
 
 ## ----depression-selection-no-pre----
 
@@ -1149,47 +1243,51 @@ nobs                    <- depression_fit %>% nobs()
 
 ## ----conclusions-pre-computations-depression----
 
-depression_coefs_sig <- depression_coefficients %>%
-  filter(term != "(Intercept)") %>% # Do not take it into account for correction
+vars_terms <- depression_neg_pre_fit |>
+  imap(~paste0(.y, levels(.x)[-1]))  |>
+  unlist()                           |>
+  enframe("variable", "term")
+
+depression_coefs_sig <- depression_coefficients |>
+  left_join(vars_terms, by = "term")            |># Do not use (Intercept)
+  filter(term != "(Intercept)")                 |>#   account for correction
   filter(p.value < SIG_LEVEL / n()) # Bilateral, Bonferroni-corrected
 
 depression_sig_terms <- depression_coefs_sig %>%
-  pull(term) %>%
+  pull(variable) %>%
   enclose('`') %>%
-  glue_collapse(sep = ', ', last = ', and  ')
+  glue_collapse(sep = ', ', last = ', and ')
 
 depression_sig_terms_labels <- depression_coefs_sig %>%
-  pull(term) %>%
+  pull(variable) %>%
   extract(labels_abbr, .)
 
-depr_ucla_lon_post_lab   <- depression_sig_terms_labels[1] %>%
-  paste("(Post)")
-depr_resilience_post_lab <- depression_sig_terms_labels[2] %>%
-  paste("(Post)")
-depr_age_lab             <- depression_sig_terms_labels[3]
+depr_ucla_lon_post_lab   <- depression_sig_terms_labels[2] %>% paste("(Post)")
+depr_resilience_post_lab <- depression_sig_terms_labels[3] %>% paste("(Post)")
 
-depression_sig_terms_labels <- depression_sig_terms_labels[-3] %>%
-  glue_collapse(last = " and ")
+depression_sig_term_cov_concern <- depression_sig_terms_labels[1]
+
+depression_sig_terms_labels <- depression_sig_terms_labels[-1] %>%
+  glue_collapse(sep = ', ', last = " and ")
 
 
-# Age:
-depr_age_term <- depression_coefs_sig %>%
-  filter(term %>% str_detect("age"))
-depr_age_test <- depr_age_term %>% print_z_test()
-depr_age_pval <- depr_age_term %>% pull() %>% print_pvalue()
-depr_age_coef <- depr_age_term %>% pull(estimate)
-depr_age_OR   <- depr_age_coef %>% exp() %>% number(1e-3)
-depr_age_dir  <- depr_age_coef %>% coef_dir(form = "verb")
-depr_age_decr <- (depr_age_coef %>% exp() - 1) %>%
+# COVID-19 concern:
+depr_concern_term <- depression_coefs_sig %>%
+  filter(term %>% str_detect("^rel_concerned"))
+depr_concern_test <- depr_concern_term %>% print_z_test()
+depr_concern_pval <- depr_concern_term %>% pull(p.value) %>% print_pvalue()
+depr_concern_coef <- depr_concern_term %>% pull(estimate)
+depr_concern_OR   <- depr_concern_coef %>% exp() %>% number(1e-3)
+depr_concern_dir  <- depr_concern_coef %>% coef_dir(form = "verb")
+depr_concern_incr <- (depr_concern_coef %>% exp() - 1) %>%
   abs() %>%
   percent(.1)
-
 
 # UCLA Loneliness scale (post):
 depr_ucla_lon_post_term <- depression_coefs_sig %>%
   filter(term %>% str_detect("ucla_lon_post$"))
 depr_ucla_lon_post_test <- depr_ucla_lon_post_term %>% print_z_test()
-depr_ucla_lon_post_pval <- depr_ucla_lon_post_term %>% pull() %>% print_pvalue()
+depr_ucla_lon_post_pval <- depr_ucla_lon_post_term %>% pull(p.value) %>% print_pvalue()
 depr_ucla_lon_post_coef <- depr_ucla_lon_post_term %>% pull(estimate)
 depr_ucla_lon_post_OR   <- depr_ucla_lon_post_coef %>% exp() %>% number(1e-3)
 depr_ucla_lon_post_dir  <- depr_ucla_lon_post_coef %>% coef_dir(form = "indet")
@@ -1197,24 +1295,13 @@ depr_ucla_lon_post_incr <- (depr_ucla_lon_post_coef %>% exp() - 1) %>%
   abs() %>%
   percent(.1)
 
-depr_ucla_lon_post_scaling <- dataset_outcomes_std %>%
-  pull(ucla_lon_post) %>%
-  attr("scaled:scale")
-
-depr_ucla_lon_post_coef_abs_score <- (
-  depr_ucla_lon_post_coef / depr_ucla_lon_post_scaling * 100 / 6
-) %>%
-  exp() %>%
-  subtract(1) %>%
-  percent(1e-1)
-
 
 # Resilience scale (post):
 depr_resilience_post_term <- depression_coefs_sig %>%
   filter(term %>% str_detect("resilience_post$"))
 depr_resilience_post_test <- depr_resilience_post_term %>% print_z_test()
 depr_resilience_post_pval <- depr_resilience_post_term %>%
-  pull() %>%
+  pull(p.value) %>%
   print_pvalue()
 depr_resilience_post_coef <- depr_resilience_post_term %>% pull(estimate)
 depr_resilience_post_OR   <- depr_resilience_post_coef %>%
@@ -1226,31 +1313,19 @@ depr_resilience_post_decr <- (depr_resilience_post_coef %>% exp() - 1) %>%
   abs() %>%
   percent(.1)
 
-depr_resilience_post_scaling <- dataset_outcomes_std %>%
-  pull(resilience_post) %>%
-  attr("scaled:scale")
-
-depr_resilience_post_coef_abs_score <- (
-  depr_resilience_post_coef / depr_resilience_post_scaling
-) %>%
-  exp() %>%
-  subtract(1) %>%
-  abs() %>%
-  percent(1e-1)
-
 
 ## ----depression-coefficients----
 
 depression_coefficients <- depression_coefficients %>%
   mutate(
-    OR         = exp(estimate) %>% number(1e-2),
-    ci.inf     = exp(estimate - std.error * CI_FACTOR),
-    ci.sup     = exp(estimate + std.error * CI_FACTOR),
-    `(95% CI)` = format_ci(ci.inf, ci.sup, sig = 2, quoting = "("),
-    `*p* value`  = p.value   %>% format_pvalues(),
-    sig        = p.value %>% is_less_than(SIG_LEVEL / (n() - 1)) %>%
-      if_else("*", ""), # -1 to omit intercept
-    statistic = statistic %>% number(1e-2),
+    OR          = exp(estimate) %>% number(1e-2),
+    ci.inf      = exp(estimate - std.error * CI_FACTOR),
+    ci.sup      = exp(estimate + std.error * CI_FACTOR),
+    `(95% CI)`  = format_ci(ci.inf, ci.sup, sig = 2, quoting = "("),
+    `*p* value` = p.value   %>% format_pvalues(),
+    # TODO: -1 to omit intercept
+    sig         = (p.value < (SIG_LEVEL / (n() - 1))) %>% if_else("*", ""),
+    statistic   = statistic %>% number(1e-2),
     across(where(is.numeric), number, 1e-3)
   ) %>%
   format_term_label(
@@ -1270,16 +1345,9 @@ depression_coefficients_table <- depression_coefficients %>%
   colformat_md(part = "all") %>%
   align(j = c(2, 4, 5), align = "right", part = "all") %>%
   align(i = 1, align = "center", part = "header") %>%
-  footnote(
-    value = as_paragraph(FOOTNOTE_LINEAR_COVARIATE),
-    i           = 10,
-    j           = 1,
-    ref_symbols = FOOTNOTE_SYMBOL[1]
-  ) %>%
   font(fontname = "Times New Roman", part = "all") %>%
   border(border.bottom = fp_border(style = "none"), part = "footer") %>%
   autofit()
-
 
 ## ---- Suicidal ideation: ----
 
@@ -1520,37 +1588,27 @@ suic_oslo3_post_neg_OR <- (
   percent(.1)
 
 
-# Resilience:
+# WHODAS-12:
 
-suic_resilience_post_label <- suicidal_sig_terms_labels["resilience_post"]
+suic_disability_post_label <- suicidal_sig_terms_labels["whodas12_post"]
 
-suic_resilience_post_term <- suicidal_coefs_sig %>%
-  filter(term == "resilience_post")
-suic_resilience_post_pval <- suic_resilience_post_term %>%
+suic_disability_post_term <- suicidal_coefs_sig %>%
+  filter(term == "whodas12_post")
+suic_disability_post_pval <- suic_disability_post_term %>%
   pull(p.value) %>%
   print_pvalue()
-suic_resilience_post_coef <- suic_resilience_post_term %>%
+suic_disability_post_coef <- suic_disability_post_term %>%
   pull(estimate) %>%
   exp()
-suic_resilience_post_dir  <- suic_resilience_post_coef %>%
+suic_disability_post_dir  <- suic_disability_post_coef %>%
   log() %>%
   coef_dir(form = "indet")
-suic_resilience_post_abs  <- (1 - suic_resilience_post_coef) %>% percent(.1)
-suic_resilience_post_test <- suic_resilience_post_term %>% print_z_test()
+suic_disability_post_abs  <- (suic_disability_post_coef - 1) %>% percent(.1)
+suic_disability_post_test <- suic_disability_post_term %>% print_z_test()
 
-suic_resilience_post_scaling <- dataset_outcomes_std %>%
-  pull(resilience_post) %>%
+suic_disability_post_scaling <- dataset_outcomes_std %>%
+  pull(whodas12_post) %>%
   attr("scaled:scale")
-
-# Negative OR per point in the scale
-#   (each point == reduction of `oslo3_post_neg_OR` in the odds)
-suic_resilience_post_neg_OR <- (
-  1 - exp(
-    log(suic_resilience_post_coef) * 100 / 11 / suic_resilience_post_scaling
-  )
-) %>%
-  percent(.1)
-
 
 ## ----suicidal-coefficients----
 
@@ -1561,7 +1619,7 @@ suicidal_coefficients <- suicidal_coefficients %>%
     ci.sup     = exp(estimate + std.error * CI_FACTOR),
     `(95% CI)` = format_ci(ci.inf, ci.sup, sig = 2, quoting = "("),
     `*p* value`  = p.value   %>% format_pvalues(),
-    sig        = p.value %>% is_less_than(SIG_LEVEL / (n() - 1)) %>%
+    sig        = p.value %>% magrittr::is_less_than(SIG_LEVEL / (n() - 1)) %>%
       if_else("*", ""), # -1 to omit intercept
     statistic = statistic %>% number(1e-2),
     across(where(is.numeric), number, 1e-3)
