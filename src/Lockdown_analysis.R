@@ -1278,7 +1278,7 @@ depr_concern_test <- depr_concern_term %>% print_z_test()
 depr_concern_pval <- depr_concern_term %>% pull(p.value) %>% print_pvalue()
 depr_concern_coef <- depr_concern_term %>% pull(estimate)
 depr_concern_OR   <- depr_concern_coef %>% exp() %>% number(1e-3)
-depr_concern_dir  <- depr_concern_coef %>% coef_dir(form = "verb")
+depr_concern_dir  <- depr_concern_coef %>% coef_dir(form = "comp")
 depr_concern_incr <- (depr_concern_coef %>% exp() - 1) %>%
   abs() %>%
   percent(.1)

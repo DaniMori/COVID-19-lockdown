@@ -398,8 +398,9 @@ significant, along with the Post-measures of `r depression_sig_terms_labels`.
 The odds-ratio for `r depression_sig_term_cov_concern` was `r depr_concern_OR`
 (`r depr_concern_test`);
 that is,
-the risk of developing depression was expected to more than for those who
-reported being concerned about a relative or friend infected by COVID-19.
+the risk of developing depression was expected to be a `r depr_concern_incr`
+`r depr_concern_dir` for those who reported being concerned about a relative or
+friend infected by COVID-19 than for those who did not.
 For `r depr_ucla_lon_post_lab`, the odds-ratio was `r depr_ucla_lon_post_OR`
 (`r depr_ucla_lon_post_test`),
 which means that an increase of one standard deviation
